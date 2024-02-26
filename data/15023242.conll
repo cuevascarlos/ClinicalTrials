@@ -93,7 +93,7 @@ O	549	550	.
 O	551	552	A
 O	553	558	total
 O	559	561	of
-O	562	565	240
+B-total-participants	562	565	240
 B-eligibility	566	574	patients
 I-eligibility	575	582	treated
 I-eligibility	583	585	in
