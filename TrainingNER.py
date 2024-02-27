@@ -1,5 +1,6 @@
-
-
+import os
+os.environ['HTTP_PROXY'] = 'http://webproxy.lab-ia.fr:8080'
+os.environ['HTTPS_PROXY'] = 'http://webproxy.lab-ia.fr:8080'
 
 #Import required packages
 from transformers import AutoTokenizer, AutoModelForTokenClassification, TrainingArguments, Trainer, DataCollatorForTokenClassification, PreTrainedTokenizerFast
