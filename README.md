@@ -124,6 +124,37 @@ Once the *.conll files* are read in order to reproduce the corpus statistics of 
 |B-iv-cont-q3	            |4	  |3      |
 |B-cv-cont-q3	            |4	  |3      |
 
+It can be seen that the frequency of total-participants is 1 less than in the paper but also there is a mismatch in the entities outcome and outcome-Measure which appears 15 and 4 times less than in the article. In the file `Preprocessing.ipynb` is the analysis of this mismatch but we can conclude that it is caused by using a different transformation from *.ann files* to *.conll files*. The chosen implementation merges two consecutive words tagged under the same entity so there is only one B-ner_tag instead of two different B-ner_tag. Here is an example:
 
+The *.ann file* is:
+```
+T8	outcome-Measure 807 903	growth factor [serum hepatocyte growth factor (HGF), vascular endothelial growth factor (VEGF)],
+T9	outcome-Measure 904 944	lipid (serum cholesterol, triglycerides)
+T10	outcome-Measure 946 962	oxidative damage
+```
+
+A part of *.conll file* associated is:
+
+```
+396531  24646362  I-outcome-Measure    888  894         factor        11892
+396532  24646362  I-outcome-Measure    895  896              (        11892
+396533  24646362  I-outcome-Measure    896  900           VEGF        11892
+396534  24646362  I-outcome-Measure    900  901              )        11892
+396535  24646362  I-outcome-Measure    901  902              ]        11892
+396536  24646362  I-outcome-Measure    902  903              ,        11892
+396537  24646362  I-outcome-Measure    904  909          lipid        11892
+396538  24646362  I-outcome-Measure    910  911              (        11892
+396539  24646362  I-outcome-Measure    911  916          serum        11892
+396540  24646362  I-outcome-Measure    917  928    cholesterol        11892
+396541  24646362  I-outcome-Measure    928  929              ,        11892
+396542  24646362  I-outcome-Measure    930  943  triglycerides        11892
+396543  24646362  I-outcome-Measure    943  944              )        11892
+396545  24646362  B-outcome-Measure    946  955      oxidative        11892
+396546  24646362  I-outcome-Measure    956  962         damage        11892
+396548  24646362  B-outcome-Measure    967  979   inflammatory        11892
+396549  24646362  I-outcome-Measure    980  990     biomarkers        11892
+```
+
+It can be seen that T8 and T9 has been merged. All the cases where exist a discrepancy are caused by the same proble. Finding how to fix it is left at the moment as further work.
 
 ### Further work
