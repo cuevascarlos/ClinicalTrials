@@ -9,8 +9,7 @@ Under the supervision of the professors *Nona Naderi* and *Sarah Cohen-Boulakia*
 
 ### Introduction
 
-The first objective of this work is to replicate the work done in the article [PICO Corpus: A Publicly Available Corpus to Support Automatic Data
-Extraction from Biomedical Literature]([PICO Corpus: A Publicly Available Corpus to Support Automatic Data](https://aclanthology.org/2022.wiesp-1.4.pdf)).
+The first objective of this work is to replicate the work done in the article ([PICO Corpus: A Publicly Available Corpus to Support Automatic Data Extraction from Biomedical Literature](https://aclanthology.org/2022.wiesp-1.4.pdf)).
 
 The pipeline of the project is tha following:
 
@@ -155,6 +154,17 @@ A part of *.conll file* associated is:
 396549  24646362  I-outcome-Measure    980  990     biomarkers        11892
 ```
 
-It can be seen that T8 and T9 has been merged. All the cases where exist a discrepancy are caused by the same proble. Finding how to fix it is left at the moment as further work.
+It can be seen that T8 and T9 has been merged. All the cases where exist a discrepancy are caused by the same problem. Finding how to fix it in order to obtain the same values as the ones reported in the paper is left at the moment as further work.
+
+
+### Preprocessing and creation of datasets understandable by the models.
+
+The authors of the paper do not provide precise information about how did they created the dataset for training and testing. The unique related information is that the data was splitted randomly in train set (80%) and test set (20%).
+
+Our problem is in essence a multiclass classification with 26 entities, in BIO format each of them has its corresponding B-ner_tag and I-ner_tag and the class O (outside) is included. At the end, the model will have to learn to classify tokens into 53 entities/classes. 
+
+In order to do the split keeping a similar representation of all the entities in the sets we will consider an stratified split.
+
+
 
 ### Further work
