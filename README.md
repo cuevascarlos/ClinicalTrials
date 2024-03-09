@@ -163,7 +163,7 @@ The authors of the paper do not provide precise information about how did they c
 
 Our problem is in essence a multiclass classification with 26 entities, in BIO format each of them has its corresponding B-ner_tag and I-ner_tag and the class O (outside) is included. At the end, the model will have to learn to classify tokens into 53 entities/classes. 
 
-In order to do the split keeping a similar representation of all the entities in the sets we will consider an stratified split.
+On the one hand, we have created one dataset without any default split in order to be able to manipulate it later. On the other hand, we create a default dataset split into train/validation/test sets. In order to do the split keeping a similar representation of all the entities in the sets we have ensured that the frequency of each entity in each set follows a similar distribution as the split (80-10-10). The process of the generation of the datasets can be seen in `Preprocessing.ipynb` and the uploaded datasets are in this [HuggingFace repository](https://huggingface.co/datasets/cuevascarlos/PICO-breast-cancer).
 
 
 
