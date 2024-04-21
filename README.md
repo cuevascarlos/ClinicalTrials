@@ -9,19 +9,19 @@ Under the supervision of the professors *Nona Naderi* and *Sarah Cohen-Boulakia*
 
 ### Introduction
 
-The first objective of this work is to replicate the work done in the article ([PICO Corpus: A Publicly Available Corpus to Support Automatic Data Extraction from Biomedical Literature](https://aclanthology.org/2022.wiesp-1.4.pdf)).
+The main objective of this work is to replicate the work done in the article ([PICO Corpus: A Publicly Available Corpus to Support Automatic Data Extraction from Biomedical Literature](https://aclanthology.org/2022.wiesp-1.4.pdf)).
 
 The pipeline of the project is tha following:
 
 1. Analysis of the dataset.
 2. Preprocessing and creation of datasets understandable by the models.
-3. Fine-tune BioBERT and LongFormer models with out datasets.
+3. Fine-tune BERT-like models for NER task.
 
 ### Analysis of the dataset
 The data has been downloaded from this [GitHub repository](https://github.com/sociocom/PICO-Corpus). Each abstract has two associated files:
 
 1. *.txt files:* Files with the abstract text.
-2. *.ann files:* Annotated files from in BRAT format.
+2. *.ann files:* Annotated files in BRAT format.
 
 The first step is to transform the *.ann files* into *.conll files* in order to have the tagged information in IOB format. There are a lot of functions on internet that make this transformation but finally we have chosen the implementation from [nlplab repository](https://github.com/nlplab/brat). In particular we have used the tool `anntoconll.py` and we have modify the function `eliminate_overlaps` to optimize the computation. The used one is the following:
 
@@ -55,7 +55,7 @@ def eliminate_overlaps(textbounds):
     return [t for t in textbounds if t not in eliminate]
 ```
 
-At this point we have a *.conll file* for each text IN IOB format which are the files we will work with.
+At this point we have a *.conll file* for each text in IOB format which are the files we will work with.
 
 **REMARK:** The file *15023242.ann* contains a mistake that the authors have omitted. 
 
@@ -163,8 +163,19 @@ The authors of the paper do not provide precise information about how did they c
 
 Our problem is in essence a multiclass classification with 26 entities, in BIO format each of them has its corresponding B-ner_tag and I-ner_tag and the class O (outside) is included. At the end, the model will have to learn to classify tokens into 53 entities/classes. 
 
-On the one hand, we have created one dataset without any default split in order to be able to manipulate it later. On the other hand, we create a default dataset split into train/validation/test sets. In order to do the split keeping a similar representation of all the entities in the sets we have ensured that the frequency of each entity in each set follows a similar distribution as the split (80-10-10). The process of the generation of the datasets can be seen in `Preprocessing.ipynb` and the uploaded datasets are in this [HuggingFace repository](https://huggingface.co/datasets/cuevascarlos/PICO-breast-cancer).
+On the one hand, we have created one dataset without any default split in order to be able to manipulate it later. On the other hand, we create some dataset splits. Firstly, one following the same percentage of abstracts for each set as in the referenced paper 80% for train set and 20% for test set. Secondly, two more splits into train/validation/test sets to follow the standard approach and optimize hyperparameters. In order to do the split keeping a similar representation of all the entities in the sets we have ensured that the frequency of each entity in each set follows a similar distribution as the split (60-20-20 or 70-10-20). The process of the generation of the datasets can be seen in `Preprocessing.ipynb` and the uploaded datasets are in this [HuggingFace repository](https://huggingface.co/datasets/cuevascarlos/PICO-breast-cancer).
 
+### Fine-tune BERT-like models for NER task.
 
+We have chosen the following pretrained models from HuggingFace:
 
-### Further work
+1. [BioBERT](https://huggingface.co/dmis-lab/biobert-large-cased-v1.1)
+2. [LongFormer](https://huggingface.co/allenai/longformer-base-4096)
+
+which are the models used in the paper. Additionally, we have consider another model
+
+3. [PubMedBERT](https://huggingface.co/microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224)
+
+Firstly, we optimize the hyperparameters of the models with [Optuna Framework](https://optuna.org/). Concretely, the learning rate, weight decay and batch size (if GPU capacity allows it, otherwise batch size will be 8). Secondly, we train several times the models to avoid bias caused by the random generation of initial weights. Finally, in order to compare the results for each entity we average the f1-scores and we also consider the maximum value. All this process is done in `TrainingNER.py`.
+
+The chosen metrics for analysing the performance of the models is [seqeval library](https://github.com/chakki-works/seqeval) in the strict mode. The models report good results but a deep error analysis has to be taken into account to see the type of errors is done.
