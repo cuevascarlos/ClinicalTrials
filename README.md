@@ -179,3 +179,37 @@ which are the models used in the paper. Additionally, we have consider another m
 Firstly, we optimize the hyperparameters of the models with [Optuna Framework](https://optuna.org/). Concretely, the learning rate, weight decay and batch size (if GPU capacity allows it, otherwise batch size will be 8). Secondly, we train several times the models to avoid bias caused by the random generation of initial weights. Finally, in order to compare the results for each entity we average the f1-scores and we also consider the maximum value. All this process is done in `TrainingNER.py`.
 
 The chosen metrics for analysing the performance of the models is [seqeval library](https://github.com/chakki-works/seqeval) in the strict mode. The models report good results but a deep error analysis has to be taken into account to see the type of errors is done.
+
+## How to use
+
+1. For the data preprocessing it is crucial to clone the repository https://github.com/nlplab/brat.git
+
+2. Data has to be in a folder named "data" where each of the files has its corresponding *.txt* and *.ann* files.
+
+3. For training models with TrainingNER.py:
+     
+    - Create the environment `conda env create -f environment.yml`
+    - Download the processed data and models from HuggingFace.
+
+    The script has several arguments:
+
+    - `mode` option has the possibilities train/test/inference.
+
+        **Train mode:** This mode does hyperparamenter optimization, train several models with different seeds and finally evaluate on test set.
+
+        **Test mode:** Evaluate the models saved locally on test set and compute the metrics at token level and word level (assigning the tag of the first subtoken, there exists the option of considering the most common entity in the subtokens) considering strict and default mode of `seqeval` framework and relaxed/lenient mode using `sklearn` library.
+        Finally, a votation is done and the most common prediction with all the models is assigned to the word.
+
+        **Inference mode:** Mode that infers over a given text or text file. It generates a .txt file with the spans that have been identified as entities, along with their start and end in the text, as well as the probability with which they have been classified.
+
+    - `data` directory that contains the .parquet files of the train, development and test set.
+
+    - `model` directory that contains the model that is going to be fine-tuned on NER.
+
+    - `save_path` directory to save all the fine-tuned models, reports, figures and evaluations.
+
+    - `read_file` directory to read the file and infer.
+
+    - `text` raw text to do inference.
+
+
