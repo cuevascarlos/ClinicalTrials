@@ -1,25 +1,147 @@
 #Import required packages
-from transformers import AutoTokenizer, LongformerTokenizerFast, AutoModelForTokenClassification, TrainingArguments, Trainer, DataCollatorForTokenClassification
-from datasets import load_dataset
+from transformers import AutoTokenizer, LongformerTokenizerFast, AutoModelForTokenClassification, TrainingArguments, Trainer, DataCollatorForTokenClassification, PreTrainedTokenizerFast
+from datasets import load_dataset, load_metric, load_from_disk
+import evaluate
 import argparse
 import torch
-from datasets import Dataset
+from torch.utils.data import TensorDataset
+from datasets import ClassLabel, Sequence, Dataset
 import random
 import numpy as np
 import pandas as pd
 from IPython.display import display, HTML
 import optuna
 import os
+import re
 import matplotlib.pyplot as plt
 import random
 import pickle
 from sklearn.metrics import classification_report as classification_report_sk
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
 from collections import Counter
 
 from seqeval.metrics import accuracy_score
 from seqeval.metrics import classification_report
 from seqeval.metrics import f1_score
 from seqeval.scheme import IOB2
+
+def make_confusion_matrix(cf,
+                          path_save,
+                          group_names=None,
+                          categories='auto',
+                          count=True,
+                          percent=True,
+                          cbar=True,
+                          xyticks=True,
+                          xyplotlabels=True,
+                          sum_stats=True,
+                          figsize=None,
+                          cmap='Blues',
+                          title=None):
+    '''
+    This function will make a pretty plot of an sklearn Confusion Matrix cm using a Seaborn heatmap visualization.
+    It has been copied from https://github.com/DTrimarchi10/confusion_matrix/blob/master/cf_matrix.py and adapted for saving the plots
+    Arguments
+    ---------
+    cf:            confusion matrix to be passed in
+
+    group_names:   List of strings that represent the labels row by row to be shown in each square.
+
+    categories:    List of strings containing the categories to be displayed on the x,y axis. Default is 'auto'
+
+    count:         If True, show the raw number in the confusion matrix. Default is True.
+
+    normalize:     If True, show the proportions for each category. Default is True.
+
+    cbar:          If True, show the color bar. The cbar values are based off the values in the confusion matrix.
+                   Default is True.
+
+    xyticks:       If True, show x and y ticks. Default is True.
+
+    xyplotlabels:  If True, show 'True Label' and 'Predicted Label' on the figure. Default is True.
+
+    sum_stats:     If True, display summary statistics below the figure. Default is True.
+
+    figsize:       Tuple representing the figure size. Default will be the matplotlib rcParams value.
+
+    cmap:          Colormap of the values displayed from matplotlib.pyplot.cm. Default is 'Blues'
+                   See http://matplotlib.org/examples/color/colormaps_reference.html
+                   
+    title:         Title for the heatmap. Default is None.
+
+    path_save:     Path to save the cm
+
+    '''
+
+
+    # CODE TO GENERATE TEXT INSIDE EACH SQUARE
+    blanks = ['' for i in range(cf.size)]
+
+    if group_names and len(group_names)==cf.size:
+        group_labels = ["{}\n".format(value) for value in group_names]
+    else:
+        group_labels = blanks
+
+    if count:
+        group_counts = ["{0:0.2f}\n".format(value) for value in cf.flatten()]
+    else:
+        group_counts = blanks
+
+    if percent:
+        group_percentages = ["{0:.2%}".format(value) for value in cf.flatten()/np.sum(cf)]
+    else:
+        group_percentages = blanks
+
+    box_labels = [f"{v1}{v2}{v3}".strip() for v1, v2, v3 in zip(group_labels,group_counts,group_percentages)]
+    box_labels = np.asarray(box_labels).reshape(cf.shape[0],cf.shape[1])
+
+
+    # CODE TO GENERATE SUMMARY STATISTICS & TEXT FOR SUMMARY STATS
+    if sum_stats:
+        #Accuracy is sum of diagonal divided by total observations
+        accuracy  = np.trace(cf) / float(np.sum(cf))
+
+        #if it is a binary confusion matrix, show some more stats
+        if len(cf)==2:
+            #Metrics for Binary Confusion Matrices
+            precision = cf[1,1] / sum(cf[:,1])
+            recall    = cf[1,1] / sum(cf[1,:])
+            f1_score  = 2*precision*recall / (precision + recall)
+            stats_text = "\n\nAccuracy={:0.3f}\nPrecision={:0.3f}\nRecall={:0.3f}\nF1 Score={:0.3f}".format(
+                accuracy,precision,recall,f1_score)
+        else:
+            stats_text = "\n\nAccuracy={:0.3f}".format(accuracy)
+    else:
+        stats_text = ""
+
+
+    # SET FIGURE PARAMETERS ACCORDING TO OTHER ARGUMENTS
+    if figsize==None:
+        #Get default figure size if not set
+        figsize = plt.rcParams.get('figure.figsize')
+
+    if xyticks==False:
+        #Do not show categories if xyticks is False
+        categories=False
+
+
+    # MAKE THE HEATMAP VISUALIZATION
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.heatmap(cf,annot=box_labels,fmt="",cmap=cmap,cbar=cbar,xticklabels=categories,yticklabels=categories, annot_kws={'size': 14})
+
+    if xyplotlabels:
+        plt.ylabel('True label')
+        plt.xlabel('Predicted label')
+    else:
+        plt.xlabel(stats_text)
+    
+    if title:
+        plt.title(title)
+    
+    #Added code
+    plt.savefig(path_save)
+    plt.close()
 
 def tokenize_and_align_labels(examples):
     '''
@@ -104,6 +226,7 @@ def generate_true_predictions_and_labels(predictions, labels, label_list, mode =
             [label_list[l] for (p, l) in zip(prediction, label) if l != -100 and l!=0]
             for prediction, label in zip(predictions, labels)
         ]
+        
     else:
         # Remove ignored index (special tokens)
         true_predictions = [
@@ -182,7 +305,7 @@ def compute_objective(predictions, labels, label_list):
     
     return f1_score(true_labels, true_predictions)
 
-def generate_csv_comparison(path_data, type_metrics = ['sk', 'strict', 'lenient']):
+def generate_csv_comparison(path_data, type_metrics = ['sk', 'strict', 'default']):
     '''
     Generate csv files to compare the results reported with classification_report using different libraries (sklearn/seqeval)
     with the results reported in https://aclanthology.org/2022.wiesp-1.4.pdf
@@ -199,54 +322,54 @@ def generate_csv_comparison(path_data, type_metrics = ['sk', 'strict', 'lenient'
         None. The function saves the results in csv files in the path_data directory.
     '''
     for t in type_metrics: 
+        for x in ['token_level', 'word_level']:
+            #Read the data
+            files = [file for file in os.listdir(path_data) if re.match(f"^{t}_test_report_\d+.*_{x}\.csv$", file)]
+            files.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
 
-        #Read the data
-        files = [file for file in os.listdir(path_data) if file.startswith(f"{t}_test_report")]
-        files.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
+            f1_scores = pd.DataFrame()
+            for file in files:
+                data = pd.read_csv(f"{path_data}/{file}", delimiter=',')
+                f1_scores[file] = data['f1-score'].round(4)
 
-        f1_scores = pd.DataFrame()
-        for file in files:
-            data = pd.read_csv(f"{path_data}/{file}", delimiter=',')
-            f1_scores[file] = data['f1-score'].round(4)
-
-        mean = f1_scores.mean(axis=1).round(4)
-        sd = f1_scores.std(axis=1).round(4)
-        max = f1_scores.max(axis=1).round(4)
-    
-        f1_scores['Support'] = data['support']
-        f1_scores['Entity'] = data['Unnamed: 0']
-        f1_scores.index = f1_scores['Entity']
-        f1_scores = f1_scores.drop(columns=['Entity'])
-    
-        f1_scores['Mean'] = list(mean.astype(str) + ' (+-' + sd.astype(str) + ')')
-        f1_scores['Just mean'] = list(mean)
-        f1_scores['Max'] = list(max)
-    
-        #Put Support column the first one
-        f1_scores = f1_scores[['Support'] + [col for col in f1_scores.columns if col != 'Support']]
-
-        #Sort the index of the rows
-        if t != 'sk':
-            f1_scores = f1_scores.reindex(['total-participants', 'intervention-participants','control-participants', 'age', 'eligibility', 'ethinicity', 'condition', 'location', 'intervention', 'control', 'outcome', 'outcome-Measure', 'iv-bin-abs', 'cv-bin-abs', 'iv-bin-percent', 'cv-bin-percent', 'iv-cont-mean', 'cv-cont-mean', 'iv-cont-median', 'cv-cont-median', 'iv-cont-sd', 'cv-cont-sd', 'iv-cont-q1', 'cv-cont-q1', 'iv-cont-q3', 'cv-cont-q3', 'micro avg', 'macro avg', 'weighted avg'])
-        else:
-            f1_scores = f1_scores.reindex(['total-participants', 'intervention-participants','control-participants', 'age', 'eligibility', 'ethinicity', 'condition', 'location', 'intervention', 'control', 'outcome', 'outcome-Measure', 'iv-bin-abs', 'cv-bin-abs', 'iv-bin-percent', 'cv-bin-percent', 'iv-cont-mean', 'cv-cont-mean', 'iv-cont-median', 'cv-cont-median', 'iv-cont-sd', 'cv-cont-sd', 'iv-cont-q1', 'cv-cont-q1', 'iv-cont-q3', 'cv-cont-q3', 'accuracy', 'macro avg', 'weighted avg'])
+            mean = f1_scores.mean(axis=1).round(4)
+            sd = f1_scores.std(axis=1).round(4)
+            max = f1_scores.max(axis=1).round(4)
         
-        #Add manually the values of the paper
-        biobert = [0.94, 0.85, 0.88, 0.8, 0.74, 0.88, 0.8, 0.76, 0.84, 0.76, 0.81, 0.84, 0.8, 0.82, 0.87, 0.88, 0.81, 0.86, 0.75, 0.79, 0.83, 0.82, 0, 0, 0, 0, None, None, None]
-        longformer = [0.95, 0.85, 0.88, 0.87, 0.88, 0.79, 0.79, 0.87, 0.84, 0.81, 0.85, 0.9, 0.82, 0.82, 0.86, 0.85, 0.84, 0.86, 0.69, 0.73, 0.89, 0.89, 0, 0, 0, 0, None, None, None]
-    
-        f1_scores['BioBERT_paper'] = biobert
-        f1_scores['Mean diff BioBERT'] = (f1_scores['Just mean'] - f1_scores['BioBERT_paper']).round(4)
-        f1_scores['Max diff BioBERT'] = (f1_scores['Max'] - f1_scores['BioBERT_paper']).round(4)
+            f1_scores['Support'] = data['support']
+            f1_scores['Entity'] = data['Unnamed: 0']
+            f1_scores.index = f1_scores['Entity']
+            f1_scores = f1_scores.drop(columns=['Entity'])
+        
+            f1_scores['Mean'] = list(mean.astype(str) + ' (+-' + sd.astype(str) + ')')
+            f1_scores['Just mean'] = list(mean)
+            f1_scores['Max'] = list(max)
+        
+            #Put Support column the first one
+            f1_scores = f1_scores[['Support'] + [col for col in f1_scores.columns if col != 'Support']]
 
-        f1_scores['Longformer_paper'] = longformer
-        f1_scores['Mean diff Longformer'] = (f1_scores['Just mean'] - f1_scores['Longformer_paper']).round(4)
-        f1_scores['Max diff Longformer'] = (f1_scores['Max'] - f1_scores['Longformer_paper']).round(4)
+            #Sort the index of the rows
+            if t != 'sk':
+                f1_scores = f1_scores.reindex(['total-participants', 'intervention-participants','control-participants', 'age', 'eligibility', 'ethinicity', 'condition', 'location', 'intervention', 'control', 'outcome', 'outcome-Measure', 'iv-bin-abs', 'cv-bin-abs', 'iv-bin-percent', 'cv-bin-percent', 'iv-cont-mean', 'cv-cont-mean', 'iv-cont-median', 'cv-cont-median', 'iv-cont-sd', 'cv-cont-sd', 'iv-cont-q1', 'cv-cont-q1', 'iv-cont-q3', 'cv-cont-q3', 'micro avg', 'macro avg', 'weighted avg'])
+            else:
+                f1_scores = f1_scores.reindex(['total-participants', 'intervention-participants','control-participants', 'age', 'eligibility', 'ethinicity', 'condition', 'location', 'intervention', 'control', 'outcome', 'outcome-Measure', 'iv-bin-abs', 'cv-bin-abs', 'iv-bin-percent', 'cv-bin-percent', 'iv-cont-mean', 'cv-cont-mean', 'iv-cont-median', 'cv-cont-median', 'iv-cont-sd', 'cv-cont-sd', 'iv-cont-q1', 'cv-cont-q1', 'iv-cont-q3', 'cv-cont-q3', 'accuracy', 'macro avg', 'weighted avg'])
+            
+            #Add manually the values of the paper
+            biobert = [0.94, 0.85, 0.88, 0.8, 0.74, 0.88, 0.8, 0.76, 0.84, 0.76, 0.81, 0.84, 0.8, 0.82, 0.87, 0.88, 0.81, 0.86, 0.75, 0.79, 0.83, 0.82, 0, 0, 0, 0, None, None, None]
+            longformer = [0.95, 0.85, 0.88, 0.87, 0.88, 0.79, 0.79, 0.87, 0.84, 0.81, 0.85, 0.9, 0.82, 0.82, 0.86, 0.85, 0.84, 0.86, 0.69, 0.73, 0.89, 0.89, 0, 0, 0, 0, None, None, None]
+        
+            f1_scores['BioBERT_paper'] = biobert
+            f1_scores['Mean diff BioBERT'] = (f1_scores['Just mean'] - f1_scores['BioBERT_paper']).round(4)
+            f1_scores['Max diff BioBERT'] = (f1_scores['Max'] - f1_scores['BioBERT_paper']).round(4)
 
-        f1_scores = f1_scores.drop(columns=['Just mean'])
+            f1_scores['Longformer_paper'] = longformer
+            f1_scores['Mean diff Longformer'] = (f1_scores['Just mean'] - f1_scores['Longformer_paper']).round(4)
+            f1_scores['Max diff Longformer'] = (f1_scores['Max'] - f1_scores['Longformer_paper']).round(4)
 
-        print("Saving file...")
-        f1_scores.to_csv(f"{path_data}/f1_scores_{t}.csv", sep=',')
+            f1_scores = f1_scores.drop(columns=['Just mean'])
+
+            print("Saving file...")
+            f1_scores.to_csv(f"{path_data}/f1_scores_{t}_{x}.csv", sep=',')
 
 def generate_learning_curves(path_data):
     '''
@@ -292,8 +415,8 @@ def generate_learning_curves(path_data):
     #Get the epochs where the weights are restored and the f1-score
     epoch_save = list(eval_f1.idxmax())
     max_f1     = list(eval_f1.max())    
-    print(f"Epochs where the parameters have been restored: {epoch_save}")
-    print(f"Maximum F1-scores achieved during training: {max_f1}")
+    print(epoch_save)
+    print(max_f1)
     #Plot the eval_f1
     eval_f1.plot(legend=False)
     plt.scatter(np.array(epoch_save), np.array(max_f1), s=5, c='red')
@@ -335,7 +458,7 @@ def annotate_samples(dataset, labels, criteria = 'first_label'):
         if criteria == 'first_label':
             annotated_sentence_filtered = [annotated_sentence[i][0] for i in range(len(annotated_sentence)) if len(annotated_sentence[i])>0]
         elif criteria == 'majority':
-            annotated_sentence_filtered = [max(set(annotated_sentence[i]), key=annotated_sentence[i].count) for i in range(len(annotated_sentence))]
+            annotated_sentence_filtered = [max(set(annotated_sentence[i]), key=annotated_sentence[i].count) for i in range(len(annotated_sentence)) if len(annotated_sentence[i])>0]
 
         annotated_sentences.append(annotated_sentence_filtered)
     return annotated_sentences
@@ -346,7 +469,8 @@ def generate_reports(predictions, labels, label_list, save_path, i):
     Generate classification reports for the given predictions and labels.
 
     This function generates classification reports in lenient mode, strict mode with the IOB2 scheme, and sklearn mode.
-    The reports are saved as CSV files in the specified save path.
+    The reports are saved as CSV files in the specified save path. For lenient mode/sklearn mode the function computes
+    the confusion matrix to have deeper error analysis at word level.
 
     Args:
         predictions (np.array): The predicted probabilities for each label. 
@@ -361,9 +485,25 @@ def generate_reports(predictions, labels, label_list, save_path, i):
     # Remove ignored index (special tokens)
     true_predictions, true_labels = generate_true_predictions_and_labels(predictions, labels, label_list)
 
+    #Compute the confusion matrix with prefixes
+    aux_true_labels = [label for full_true in true_labels for label in full_true]
+    aux_true_predictions = [label for full_pred in true_predictions for label in full_pred]
+
+    categories = ["O", "B-total-participants", "I-total-participants", "B-intervention-participants", "I-intervention-participants", "B-control-participants", "I-control-participants", "B-age", "I-age", "B-eligibility","I-eligibility","B-ethinicity","I-ethinicity","B-condition","I-condition","B-location","I-location","B-intervention","I-intervention","B-control","I-control","B-outcome","I-outcome","B-outcome-Measure","I-outcome-Measure","B-iv-bin-abs", "I-iv-bin-abs", "B-cv-bin-abs", "I-cv-bin-abs", "B-iv-bin-percent", "I-iv-bin-percent", "B-cv-bin-percent", "I-cv-bin-percent", "B-iv-cont-mean", "I-iv-cont-mean", "B-cv-cont-mean", "I-cv-cont-mean", "B-iv-cont-median", "I-iv-cont-median", "B-cv-cont-median", "I-cv-cont-median", "B-iv-cont-sd", "I-iv-cont-sd", "B-cv-cont-sd", "I-cv-cont-sd", "B-iv-cont-q1", "I-iv-cont-q1", "B-cv-cont-q1", "I-cv-cont-q1", "B-iv-cont-q3", "I-iv-cont-q3", "B-cv-cont-q3", "I-cv-cont-q3"]
+    cm = np.array(confusion_matrix(aux_true_labels, aux_true_predictions, labels=categories, normalize='true')).reshape(len(categories), len(categories))
+    make_confusion_matrix(cm, f"{save_path}/cm_prefixes_{i}.png", categories=categories, cmap='viridis', figsize=(30,20), title='Confusion matrix', cbar = True, count = False, percent = False)
+
+    #Compute the confusion matrix without prefixes
+    aux_true_labels = [label.split('-',1)[1] if len(label.split('-')) > 1 else label for full_true in true_labels for label in full_true]
+    aux_true_predictions = [label.split('-',1)[1] if len(label.split('-')) > 1 else label for full_pred in true_predictions for label in full_pred]
+    
+    categories = ['O', 'total-participants', 'intervention-participants', 'control-participants', 'age', 'eligibility', 'ethinicity', 'condition', 'location', 'intervention', 'control', 'outcome', 'outcome-Measure', 'iv-bin-abs', 'cv-bin-abs', 'iv-bin-percent', 'cv-bin-percent', 'iv-cont-mean', 'cv-cont-mean', 'iv-cont-median', 'cv-cont-median', 'iv-cont-sd', 'cv-cont-sd', 'iv-cont-q1', 'cv-cont-q1', 'iv-cont-q3', 'cv-cont-q3']
+    cm = np.array(confusion_matrix(aux_true_labels, aux_true_predictions, labels=categories, normalize='true')).reshape(len(categories), len(categories))
+    make_confusion_matrix(cm, f"{save_path}/cm_{i}.png", categories=categories, cmap='viridis', figsize=(20,20), title='Confusion matrix', cbar = False, percent = False)
+
     # IO format
     class_report_lenient = classification_report(true_labels, true_predictions, output_dict=True)
-    pd.DataFrame(class_report_lenient).transpose().to_csv(f"{save_path}/lenient_test_report_{i}.csv")
+    pd.DataFrame(class_report_lenient).transpose().to_csv(f"{save_path}/default_test_report_{i}.csv")
 
     # IOB2 format
     class_report_strict = classification_report(true_labels, true_predictions, mode = 'strict', scheme=IOB2, output_dict=True)
@@ -371,13 +511,44 @@ def generate_reports(predictions, labels, label_list, save_path, i):
 
     # Remove ignored index (special tokens) and outside tokens
     sk_true_predictions, sk_true_labels = generate_true_predictions_and_labels(predictions, labels, label_list, mode='sklearn')
-
-    sk_true_labels = [label.split('-',1)[1] if len(label.split('-')) > 1 else label for full_true in sk_true_labels for label in full_true]
-    sk_true_predictions = [label.split('-',1)[1] if len(label.split('-')) > 1 else label for full_pred in sk_true_predictions for label in full_pred]
+    aux_true_labels = [label for full_true in sk_true_labels for label in full_true]
+    aux_true_predictions = [label for full_pred in sk_true_predictions for label in full_pred]
 
     # Lenient mode
-    class_report_sk = classification_report_sk(sk_true_labels, sk_true_predictions, output_dict=True)
+    class_report_sk = classification_report_sk(aux_true_labels, aux_true_predictions, output_dict=True)
+    pd.DataFrame(class_report_sk).transpose().to_csv(f"{save_path}/skp_test_report_{i}.csv")
+
+    #Removing the prefixes
+    aux_true_labels = [label.split('-',1)[1] if len(label.split('-')) > 1 else label for full_true in sk_true_labels for label in full_true]
+    aux_true_predictions = [label.split('-',1)[1] if len(label.split('-')) > 1 else label for full_pred in sk_true_predictions for label in full_pred]
+
+    class_report_sk = classification_report_sk(aux_true_labels, aux_true_predictions, output_dict=True)
     pd.DataFrame(class_report_sk).transpose().to_csv(f"{save_path}/sk_test_report_{i}.csv")
+
+def read_txt_file(file_path):
+    """
+    Reads the content of a text file.
+
+    This function opens a file in read mode, reads the content, and returns it. 
+    If the file does not exist, it prints an error message and returns None.
+
+    Args:
+        file_path (str): The path to the file to be read.
+
+    Returns:
+        str: The content of the file as a string if the file exists. 
+        None: If the file does not exist.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+    """
+    try:
+        with open(file_path, 'r') as file:
+            content = file.read()
+        return content
+    except FileNotFoundError:
+        print(f"File '{file_path}' not found.")
+        return None
 
 
 
@@ -386,11 +557,13 @@ BATCH_SIZE = 8
 if __name__ == '__main__':
     #Define the argument parser
     parser = argparse.ArgumentParser(description='Fine-tune a model on NER task')
-    parser.add_argument('-mode', '--mode', help='Mode to run the script train/test', required=True)
-    parser.add_argument('-d','--data', help='Dataset to work with', required=True)
+    parser.add_argument('-mode', '--mode', help='Mode to run the script train/test/inference', required=True)
+    parser.add_argument('-d','--data', help='Dataset to work with', required=False)
     parser.add_argument('-m','--model', help='Model checkpoint', required=True)
     parser.add_argument('-s','--save_path', help='Path to save the model', required=False)
     parser.add_argument('-t','--task', help='Task to perform', required=False)
+    parser.add_argument('-txt', '--read_file', help='Directory to read and infer', required=False)
+    parser.add_argument('-text', '--text', help='Text to do inference', required=False)
 
     #Parse the arguments
     args = vars(parser.parse_args())
@@ -401,18 +574,40 @@ if __name__ == '__main__':
     else:
         task = 'ner'
 
-    if args['mode'] == 'test':
-        MODE = 'test'
-    elif args['mode'] == 'train':
-        MODE = 'train'
-
     model_name = model_checkpoint.split("/")[-1]
-    data_name = args['data'].split("/")[-1]
 
     if args['save_path'] != None:
         save_path = f"{args['save_path']}/{model_name}-finetuned-{task}"
     else:
         save_path = f"./{model_name}-finetuned-{task}"
+    
+    if args['mode'] == 'test' and args['data'] is None:
+        raise ValueError("When mode is 'test', 'data' must be defined.")
+    elif args['mode'] == 'test' and args['data'] is not None:
+        MODE = 'test'
+        data_name = args['data'].split("/")[-1]
+        if not os.path.exists(f"{save_path}/REPORTS"):
+            os.makedirs(f"{save_path}/REPORTS")
+
+    elif args['mode'] == 'train' and args['data'] is None:
+        raise ValueError("When mode is 'train', 'data' must be defined.")
+    elif args['mode'] == 'train' and args['data'] is not None:
+        MODE = 'train'
+        data_name = args['data'].split("/")[-1]
+
+    elif args['mode'] == 'inference' and args['read_file'] is None and args['text'] is None:
+        raise ValueError("When mode is 'inference', at least one of 'read_file' or 'text' must be defined.")
+    elif args['mode'] == 'inference':
+        if args['read_file'] is not None:
+            file_name = args['read_file'].split("/")[-1].split(".")[0]
+            text = read_txt_file(args['read_file'])
+        elif args['text'] is not None:
+            file_name = 'example'
+            text = args['text']
+        MODE = 'inference'
+        if not os.path.exists(f"{save_path}/INFERENCE"):
+            os.makedirs(f"{save_path}/INFERENCE")
+
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}')
@@ -423,6 +618,13 @@ if __name__ == '__main__':
         print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
         print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
 
+    #Define the tokenizer
+    if model_checkpoint == '../models/longformer-base-4096':
+        tokenizer = LongformerTokenizerFast.from_pretrained(model_checkpoint, add_prefix_space=True)
+        flag_tokenizer = 'LongFormer'
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
+        flag_tokenizer = None
 
     #Load the dataset
     if MODE != "inference":
@@ -439,14 +641,6 @@ if __name__ == '__main__':
         
 
         #Preprocessing the data
-        #Define the tokenizer
-        if model_checkpoint == '../models/longformer-base-4096':
-            tokenizer = LongformerTokenizerFast.from_pretrained(model_checkpoint, add_prefix_space=True)
-            flag_tokenizer = 'LongFormer'
-        else:
-            tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
-            flag_tokenizer = None
-
         label_all_tokens = True
         print("TOKENIZING...")
         tokenized_datasets = datasets.map(tokenize_and_align_labels, batched=True)
@@ -582,14 +776,17 @@ if __name__ == '__main__':
             predictions, labels, _ = trainer.predict(tokenized_datasets["test"])
 
             predictions = np.argmax(predictions, axis=2)
-            generate_reports(predictions, labels, label_list, save_path, i)
+            generate_reports(predictions, labels, label_list, save_path, f"{i}_token_level")
 
          
-        generate_csv_comparison(save_path)
+        generate_csv_comparison(save_path+"/REPORTS")
         generate_learning_curves(save_path)
 
 
     if MODE == 'test':
+        
+        model_files = [file for file in os.listdir(save_path) if file.startswith("model_")]
+        model_files.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
         
         input_ids = torch.tensor(tokenized_datasets["test"]["input_ids"]).to(device)
         attention_mask = torch.tensor(tokenized_datasets["test"]["attention_mask"]).to(device)     
@@ -598,10 +795,10 @@ if __name__ == '__main__':
         labels = tokenized_datasets['test']['labels']
 
         models_predictions = []
-        for i in range(5):
-            print(f"EVALUATING... model {i}")
-
-            model = torch.load(f"{save_path}/model_{i}.pt")
+        for i, model_file in enumerate(model_files):
+            #print(i, model_file)
+            print(f"EVALUATING... model {i+1}")
+            model = torch.load(f"{save_path}/{model_file}")
             model.to(device)
             model.eval()
             with torch.no_grad():
@@ -610,54 +807,52 @@ if __name__ == '__main__':
             predictions = torch.argmax(outputs.logits, dim=2).to("cpu").numpy()
             torch.cuda.empty_cache()
             
-            generate_reports(predictions, labels, label_list, save_path, i)
+            generate_reports(predictions, labels, label_list, save_path+"/REPORTS", f"{i}_token_level")
 
-            annotated_samples_first = annotate_samples(tokenized_datasets["test"], predictions, criteria='first_label')
+            annotated_samples_first = annotate_samples(tokenized_datasets["test"], predictions)
+            generate_reports(annotated_samples_first, datasets['test']['ner_tags'] , label_list, save_path+"/REPORTS", f"{i}_word_level")
             models_predictions.append(annotated_samples_first)
 
-        generate_csv_comparison(save_path)
+        generate_csv_comparison(save_path+"/REPORTS")
         
         #Save predictions for the models in csv files
-        dataset_annotated = Dataset.from_dict({'tokens': tokenized_datasets["test"]['tokens'], 
-                                                'Predicted_label_0': models_predictions[0],
-                                                'Predicted_label_1': models_predictions[1], 
-                                                'Predicted_label_2': models_predictions[2],
-                                                'Predicted_label_3': models_predictions[3],
-                                                'Predicted_label_4': models_predictions[4],  
-                                                'file': tokenized_datasets["test"]['id'],
-                                                'true_labels': datasets['test']['ner_tags']
-                                                })
 
+        # Create a dictionary for the dataset
+        dataset_dict = {'tokens': tokenized_datasets["test"]['tokens'], 'file': tokenized_datasets["test"]['id'], 'true_labels': datasets['test']['ner_tags']}
+        for i in range(len(model_files)):
+            dataset_dict[f'Predicted_label_{i}'] = models_predictions[i]
 
-        # generate the files
-        if not  os.path.exists(f"{save_path}/Evaluations"):
+        dataset_annotated = Dataset.from_dict(dataset_dict)
+
+        # Generate the files
+        if not os.path.exists(f"{save_path}/Evaluations"):
             os.makedirs(f"{save_path}/Evaluations")
+
         most_common_predictions = []
         for j in range(len(dataset_annotated['file'])):
-            csv_dict = {'token': [], 'True label': [], 'Most common': [], 'Pred model 1': [], 'Pred model 2': [], 'Pred model 3': [], 'Pred model 4': [], 'Pred model 5': []}
+            csv_dict = {'token': [], 'True label': [], 'Most common': []}
+            for i in range(len(model_files)):
+                csv_dict[f'Pred model {i+1}'] = []
+
             file_data = dataset_annotated.filter(lambda x: x['file'] == str(j))
-            
-            
-            for sentence, or_labels, preds_1, preds_2, preds_3, preds_4, preds_5 in zip(file_data['tokens'], file_data['true_labels'], file_data['Predicted_label_0'], file_data['Predicted_label_1'], file_data['Predicted_label_2'], file_data['Predicted_label_3'], file_data['Predicted_label_4']):
-                for token, or_label, pred_1, pred_2, pred_3, pred_4, pred_5 in zip(sentence, or_labels, preds_1, preds_2, preds_3, preds_4, preds_5):
+
+            for data in zip(file_data['tokens'], file_data['true_labels'], *(file_data[f'Predicted_label_{i}'] for i in range(len(model_files)))):
+                sentence, or_labels, *preds = data
+                for token_data in zip(sentence, or_labels, *preds):
+                    token, or_label, *pred_values = token_data
                     csv_dict['token'].append(token)
                     csv_dict['True label'].append(label_list[or_label])
-                    csv_dict['Pred model 1'].append(label_list[pred_1])
-                    csv_dict['Pred model 2'].append(label_list[pred_2])
-                    csv_dict['Pred model 3'].append(label_list[pred_3])
-                    csv_dict['Pred model 4'].append(label_list[pred_4])
-                    csv_dict['Pred model 5'].append(label_list[pred_5])
-                    occurence_counter = Counter([csv_dict['Pred model 1'][-1], csv_dict['Pred model 2'][-1], csv_dict['Pred model 3'][-1], csv_dict['Pred model 4'][-1], csv_dict['Pred model 5'][-1]])
+                    for i, pred_value in enumerate(pred_values):
+                        csv_dict[f'Pred model {i+1}'].append(label_list[pred_value])
+                    occurence_counter = Counter([csv_dict[f'Pred model {i+1}'][-1] for i in range(len(model_files))])
                     csv_dict['Most common'].append(occurence_counter.most_common(1)[0][0])
-                
+
             most_common_predictions.append(csv_dict['Most common'])
-
             pd.DataFrame.from_dict(csv_dict,  orient='index').transpose().to_csv(f"{save_path}/Evaluations/File_{j}_IOB.csv")
-    
 
-        #Compute the classification reports with most common predictions
-        generate_reports(most_common_predictions, labels, label_list, save_path, 'most_common')
-
+        # Compute the classification reports with most common predictions
+        most_common_predictions = [[labelxids[id] for id in lab] for lab in most_common_predictions]
+        generate_reports(most_common_predictions,  dataset_annotated['true_labels'], label_list, save_path+"/REPORTS", 'most_common')
                 
     if device.type == 'cuda':
         print(torch.cuda.get_device_name(0))
@@ -666,5 +861,31 @@ if __name__ == '__main__':
         print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
     
 
-###TODO: INFERENCE MODE
+    if MODE == 'inference':
+
+        from transformers import pipeline
+        model_files = []
+        aux_directories = [os.path.join(save_path, d) for d in os.listdir(save_path) if d.startswith('Training_')]
+        aux_directories.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
+        print(aux_directories)
+        for directory in aux_directories:
+            model_files.append([os.path.join(directory, d) for d in os.listdir(directory)][0])
+
+        models_predictions = []
+        for i, model_file in enumerate(model_files):
+            #print(i, model_file)
+            print(f"EVALUATING... model {i+1}")        
+            classifier = pipeline("ner", model=model_file, aggregation_strategy = 'average')
+            models_predictions.append(classifier(text))
+        
+        keys_order = ['score', 'start', 'end','entity_group', 'word']
+        for i, predictions in enumerate(models_predictions):
+            with open(f'{save_path}/INFERENCE/{file_name}_{i}.txt', 'w') as f:
+                f.write(''.join([key.ljust(15) for key in keys_order])+'\n')
+                for item in predictions:
+                    f.write(''.join([str(item.get(key, '')).ljust(15) for key in keys_order])+'\n')
+
+        ##TODO: Split the input text in texts if it is too long
+
+
 
