@@ -169,7 +169,7 @@ On the one hand, we have created one dataset without any default split in order 
 
 We have chosen the following pretrained models from HuggingFace:
 
-1. [BioBERT](https://huggingface.co/dmis-lab/biobert-large-cased-v1.1)
+1. [BioBERT](https://huggingface.co/dmis-lab/biobert-base-cased-v1.2)
 2. [LongFormer](https://huggingface.co/allenai/longformer-base-4096)
 
 which are the models used in the paper. Additionally, we have consider another model
@@ -181,6 +181,8 @@ Firstly, we optimize the hyperparameters of the models with [Optuna Framework](h
 The chosen metrics for analysing the performance of the models is [seqeval library](https://github.com/chakki-works/seqeval) in the strict mode. The models report good results but a deep error analysis has to be taken into account to see the type of errors is done.
 
 ## How to use
+
+Python version: 3.10.13
 
 1. For the data preprocessing it is crucial to clone the repository https://github.com/nlplab/brat.git
 
