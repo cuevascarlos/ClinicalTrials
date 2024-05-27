@@ -1,17 +1,16 @@
 #Import required packages
-from transformers import AutoTokenizer, LongformerTokenizerFast, AutoModelForTokenClassification, TrainingArguments, Trainer, DataCollatorForTokenClassification, PreTrainedTokenizerFast
-from datasets import load_dataset, load_metric, load_from_disk
+from transformers import AutoTokenizer, LongformerTokenizerFast, AutoModelForTokenClassification, TrainingArguments, Trainer, DataCollatorForTokenClassification
+from datasets import load_dataset
 import evaluate
 import argparse
 import torch
-from torch.utils.data import TensorDataset
-from datasets import ClassLabel, Sequence, Dataset
+from datasets import Dataset
 import random
 import numpy as np
 import pandas as pd
-from IPython.display import display, HTML
 import optuna
 import os
+import glob
 import re
 import matplotlib.pyplot as plt
 import random
@@ -276,7 +275,7 @@ def compute_metrics(p):
     results = {
           'accuracy': accuracy_score(true_labels, true_predictions),
           'f1': f1_score(true_labels, true_predictions),
-          'classification_report': classification_report(true_labels, true_predictions, mode='strict', scheme= IOB2, output_dict=True)    
+          #'classification_report': classification_report(true_labels, true_predictions, mode='strict', scheme= IOB2, output_dict=True)    
     }
     return results
 
@@ -305,7 +304,7 @@ def compute_objective(predictions, labels, label_list):
     
     return f1_score(true_labels, true_predictions)
 
-def generate_csv_comparison(path_data, type_metrics = ['sk', 'strict', 'default']):
+def generate_csv_comparison(path_data, type_metrics = ['sk', 'strict', 'default'], type_level = ['token_level', 'word_level']):
     '''
     Generate csv files to compare the results reported with classification_report using different libraries (sklearn/seqeval)
     with the results reported in https://aclanthology.org/2022.wiesp-1.4.pdf
@@ -322,7 +321,7 @@ def generate_csv_comparison(path_data, type_metrics = ['sk', 'strict', 'default'
         None. The function saves the results in csv files in the path_data directory.
     '''
     for t in type_metrics: 
-        for x in ['token_level', 'word_level']:
+        for x in type_level:
             #Read the data
             files = [file for file in os.listdir(path_data) if re.match(f"^{t}_test_report_\d+.*_{x}\.csv$", file)]
             files.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
@@ -552,9 +551,15 @@ def read_txt_file(file_path):
 
 
 
-BATCH_SIZE = 8
+BATCH_SIZE = 16
+seed = 42
+HYPERPARAMETERS_SEARCH = True
+os.environ['PYTHONHASHSEED']=str(seed)
 
 if __name__ == '__main__':
+
+    random.seed(seed)
+
     #Define the argument parser
     parser = argparse.ArgumentParser(description='Fine-tune a model on NER task')
     parser.add_argument('-mode', '--mode', help='Mode to run the script train/test/inference', required=True)
@@ -578,11 +583,14 @@ if __name__ == '__main__':
 
     if args['save_path'] != None:
         save_path = f"{args['save_path']}/{model_name}-finetuned-{task}"
+
     else:
         save_path = f"./{model_name}-finetuned-{task}"
     
+
     if args['mode'] == 'test' and args['data'] is None:
         raise ValueError("When mode is 'test', 'data' must be defined.")
+
     elif args['mode'] == 'test' and args['data'] is not None:
         MODE = 'test'
         data_name = args['data'].split("/")[-1]
@@ -594,6 +602,8 @@ if __name__ == '__main__':
     elif args['mode'] == 'train' and args['data'] is not None:
         MODE = 'train'
         data_name = args['data'].split("/")[-1]
+        if not os.path.exists(f"{save_path}/REPORTS"):
+            os.makedirs(f"{save_path}/REPORTS")
 
     elif args['mode'] == 'inference' and args['read_file'] is None and args['text'] is None:
         raise ValueError("When mode is 'inference', at least one of 'read_file' or 'text' must be defined.")
@@ -648,81 +658,101 @@ if __name__ == '__main__':
 
 
     if MODE == 'train':
-        #Hyperparameter fine-tuning
-        
-        print("FINE-TUNING HYPERPARAMETERS...")
-
-        seed = 42
         random.seed(seed)
+
+        ####TO CONTROL RANDOMNESS####
         np.random.seed(seed)
         torch.manual_seed(seed)
         torch.random.manual_seed(seed)
         torch.cuda.manual_seed(seed)
-    
-        def objective(trial: optuna.Trial):
-            model = AutoModelForTokenClassification.from_pretrained(model_checkpoint, num_labels=len(label_list), label2id=labelxids, id2label=idsxlabel)
-            print(f"Trial {trial.number}")   
-            model.to(device)
+        #############################
 
-            args = TrainingArguments(
-            save_path+"/HyperparametersSearch",
-            learning_rate=trial.suggest_float("learning_rate", low=2e-5, high=5e-5, log=True),
-            weight_decay=trial.suggest_float("weight_decay", 4e-5, 0.01, log=True),
-            per_device_train_batch_size= BATCH_SIZE,#trial.suggest_categorical("per_device_train_batch_size", [8, 16, 32]),
-            per_device_eval_batch_size= BATCH_SIZE, #trial.suggest_categorical("per_device_eval_batch_size", [8, 16, 32]),
-            num_train_epochs=10,
-            evaluation_strategy = "epoch",
-            save_strategy="epoch",
-            load_best_model_at_end=True,
-            greater_is_better = False,
-            eval_accumulation_steps=1,
-            )
+        # Check if the hyperparameters exist
+        pkl_files = glob.glob(os.path.join(save_path, "*.pkl"))
+        if pkl_files:
+            #Open the file
+            with open(pkl_files[0], 'rb') as file:
+                hyperparameters_loaded = pickle.load(file)
+                print(f"Imported hyperparameters: \n\t {hyperparameters_loaded}")
+        else:
+            if HYPERPARAMETERS_SEARCH:
+                #Hyperparameter fine-tuning
+                print("FINE-TUNING HYPERPARAMETERS...")
+                def objective(trial: optuna.Trial):
+                    model = AutoModelForTokenClassification.from_pretrained(model_checkpoint, num_labels=len(label_list), label2id=labelxids, id2label=idsxlabel)
+                    print(f"Trial {trial.number}")   
+                    model.to(device)
 
-            data_collator = DataCollatorForTokenClassification(tokenizer)
+                    args = TrainingArguments(
+                    save_path+"/HyperparametersSearch",
+                    learning_rate=trial.suggest_float("learning_rate", low=2e-5, high=5e-5, log=True),
+                    weight_decay=trial.suggest_float("weight_decay", 4e-5, 0.01, log=True),
+                    per_device_train_batch_size= trial.suggest_categorical("per_device_train_batch_size", [8, 16, 32]),
+                    per_device_eval_batch_size= trial.suggest_categorical("per_device_eval_batch_size", [8, 16, 32]),
+                    num_train_epochs=10,
+                    evaluation_strategy = "epoch",
+                    save_strategy="epoch",
+                    load_best_model_at_end=True,
+                    greater_is_better = False,
+                    eval_accumulation_steps=1,
+                    )
 
-            trainer = Trainer(
-            model,
-            args,
-            train_dataset=tokenized_datasets['train'],
-            eval_dataset=tokenized_datasets['valid'],
-            data_collator=data_collator,
-            tokenizer=tokenizer,
-            )
-        
-            trainer.train()
-            if device.type == 'cuda':
-                print(torch.cuda.get_device_name(0))
-                print('Memory Usage:')
-                print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
-                print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
+                    data_collator = DataCollatorForTokenClassification(tokenizer)
 
-            #We want to maximize the f1-score in validation set
-            predictions, labels, metrics = trainer.predict(tokenized_datasets['valid'])  
-            print(f"Validation set metrics: \n {metrics}")
-            f1_value = compute_objective(predictions, labels, label_list)
-            print(f"F1-Score: {f1_value}")
-            return f1_value
+                    trainer = Trainer(
+                    model,
+                    args,
+                    train_dataset=tokenized_datasets['train'],
+                    eval_dataset=tokenized_datasets['valid'],
+                    data_collator=data_collator,
+                    tokenizer=tokenizer,
+                    )
+                
+                    trainer.train()
+                    if device.type == 'cuda':
+                        print(torch.cuda.get_device_name(0))
+                        print('Memory Usage:')
+                        print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
+                        print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
+
+                    #We want to maximize the f1-score in validation set
+                    predictions, labels, metrics = trainer.predict(tokenized_datasets['valid'])  
+                    print(f"Validation set metrics: \n {metrics}")
+                    f1_value = compute_objective(predictions, labels, label_list)
+                    print(f"F1-Score: {f1_value}")
+                    return f1_value
+                    
+
+                # We want to maximize the f1-score in validation set
+                study = optuna.create_study(study_name="hyper-parameter-search", direction="maximize")
+                study.optimize(func=objective, n_trials=15)
+                print(f"Best F1-score: {study.best_value}")
+                print(f"Best parameters: {study.best_params}")
+                print(f"Best trial: {study.best_trial}")
+
+                file = open(f"{save_path}/best_params.pkl", "wb")
+                pickle.dump(study.best_params, file)
+                file.close()
+                hyperparameters_loaded = study.best_params
             
-
-        # We want to maximize the f1-score in validation set
-        study = optuna.create_study(study_name="hyper-parameter-search", direction="maximize")
-        study.optimize(func=objective, n_trials=15)
-        print(f"Best F1-score: {study.best_value}")
-        print(f"Best parameters: {study.best_params}")
-        print(f"Best trial: {study.best_trial}")
-
-        file = open(f"{save_path}/best_params.pkl", "wb")
-        pickle.dump(study.best_params, file)
-        file.close()
+            else:
+                #Rounded BioBERT
+                hyperparameters_loaded = {'learning_rate': 4.976e-05,
+                                          'weight_decay': 0.003,
+                                          'per_device_train_batch_size': 8,
+                                          'per_device_eval_batch_size': 16}
+                print(f"Training with hyperparameters: \n\t {hyperparameters_loaded}")
+                
         
-    
+        if 'per_device_train_batch_size' not in list(hyperparameters_loaded.keys()):
+            hyperparameters_loaded['per_device_train_batch_size'] = BATCH_SIZE
+        if 'per_device_eval_batch_size' not in list(hyperparameters_loaded.keys()):
+            hyperparameters_loaded['per_device_eval_batch_size']  = BATCH_SIZE
+        
         #TRAINING
-        seed = 42
-        random.seed(seed)
-        
-        print("TRAINING...")
-        for i in range(5):
 
+        for i in range(5):
+            print("TRAINING...")
             #Define the model
             model = AutoModelForTokenClassification.from_pretrained(model_checkpoint, num_labels=len(label_list), label2id=labelxids, id2label=idsxlabel)
     
@@ -731,11 +761,7 @@ if __name__ == '__main__':
             model_name = model_checkpoint.split("/")[-1]
             args = TrainingArguments(
                 f"{save_path}/Training_{i}",
-                learning_rate= float(study.best_params['learning_rate']), #2e-5
-                per_device_train_batch_size= BATCH_SIZE,#int(study.best_params['per_device_train_batch_size']),
-                per_device_eval_batch_size= BATCH_SIZE, #int(study.best_params['per_device_eval_batch_size']),
-                weight_decay = float(study.best_params['weight_decay']), #0.01
-                num_train_epochs=20,
+                num_train_epochs=40,
                 evaluation_strategy = "epoch",
                 save_strategy="epoch",
                 logging_strategy="epoch",
@@ -744,6 +770,7 @@ if __name__ == '__main__':
                 save_total_limit=1,
                 seed=random.randint(0,200),
                 eval_accumulation_steps=1,
+                **hyperparameters_loaded
             )
 
             data_collator = DataCollatorForTokenClassification(tokenizer)
@@ -776,10 +803,12 @@ if __name__ == '__main__':
             predictions, labels, _ = trainer.predict(tokenized_datasets["test"])
 
             predictions = np.argmax(predictions, axis=2)
-            generate_reports(predictions, labels, label_list, save_path, f"{i}_token_level")
+            generate_reports(predictions, labels, label_list, save_path+"/REPORTS", f"{i}_token_level")
+
+            #torch.cuda.empty_cache()
 
          
-        generate_csv_comparison(save_path+"/REPORTS")
+        generate_csv_comparison(save_path+"/REPORTS", type_level=['token_level'])
         generate_learning_curves(save_path)
 
 
