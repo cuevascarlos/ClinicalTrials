@@ -5,11 +5,11 @@ TER (travail d’étude et de recherche) at LISN to extract information from pub
 
 Under the supervision of the professors *Nona Naderi* and *Sarah Cohen-Boulakia*.
 
-*Keywords:* Name Entity Recognition, NER, clinical trials, PICO corpus.
+*Keywords:* Name Entity Recognition, NER, clinical trials, PICO corpus, Reproducibility.
 
 ### Introduction
 
-The main objective of this work is to replicate the work done in the article ([PICO Corpus: A Publicly Available Corpus to Support Automatic Data Extraction from Biomedical Literature](https://aclanthology.org/2022.wiesp-1.4.pdf)).
+The main objective of this work is to reproduce the work done in the article ([PICO Corpus: A Publicly Available Corpus to Support Automatic Data Extraction from Biomedical Literature](https://aclanthology.org/2022.wiesp-1.4.pdf)).
 
 The pipeline of the project is tha following:
 
@@ -20,10 +20,10 @@ The pipeline of the project is tha following:
 ### Analysis of the dataset
 The data has been downloaded from this [GitHub repository](https://github.com/sociocom/PICO-Corpus). Each abstract has two associated files:
 
-1. *.txt files:* Files with the abstract text.
+1. *.txt files:* Files with the abstract plain text.
 2. *.ann files:* Annotated files in BRAT format.
 
-The first step is to transform the *.ann files* into *.conll files* in order to have the tagged information in IOB format. There are a lot of functions on internet that make this transformation but finally we have chosen the implementation from [nlplab repository](https://github.com/nlplab/brat). In particular we have used the tool `anntoconll.py` and we have modify the function `eliminate_overlaps` to optimize the computation. The used one is the following:
+The first step is to transform the *.ann files* into *.conll files* in order to have the tagged information in IOB format. There are a lot of tools on internet that make this transformation but finally we have chosen the implementation from [nlplab repository](https://github.com/nlplab/brat). In particular we have used the script `anntoconll.py` and we have modify the function `eliminate_overlaps` to optimize the computation. The used one is the following:
 
 ```
 def eliminate_overlaps(textbounds):
@@ -57,7 +57,7 @@ def eliminate_overlaps(textbounds):
 
 At this point we have a *.conll file* for each text in IOB format which are the files we will work with.
 
-**REMARK:** The file *15023242.ann* contains a mistake that the authors have omitted. 
+**REMARK:** The file *15023242.ann* contains an overlapped annotation that the tool chosen removes.
 
 ```
 T1	intervention 0 10	Paclitaxel
@@ -88,11 +88,11 @@ T3	outcome 1024 1050	median follow-up durations
 T7	control 747 796	FAC (5-fluorouracil/doxorubicin/cyclophosphamide)
 ```
 
-It can be seen that T2 and T26 are overlapped and after check which is the correct one we can conclude that T26 is the wrong one with the wrong beginning and ending values. It has been modified manually to have the same beginning and ending values, it could also have been omitted directly.
+It can be seen that T2 and T26 are overlapped and after check which is the correct one we can conclude that T26 is the wrong one with the wrong beginning and ending values. To avoid not considering either of the two it has been modified manually to have the same beginning and ending values, it could also have been omitted directly T26.
 
 This change is the consequence of the frequency of the total-participants entity being a unit smaller than that reported by the authors.
 
-Once the *.conll files* are read in order to reproduce the corpus statistics of Table 1 in the [paper](https://aclanthology.org/2022.wiesp-1.4.pdf) as the entities are divided into B-ner_tag and I-ner_tag the amount of times each entity appears can be reported considering only the times B-ner_tag appears for each ner_tag. The corpus statistics obtained in our work is the following:
+Once the *.conll files* are read in order to reproduce the corpus statistics of Table 1 in the [paper](https://aclanthology.org/2022.wiesp-1.4.pdf) as the entities are divided into B-ner_tag and I-ner_tag the amount of times each entity appears can be reported considering only the times B-ner_tag appears for each ner_tag. The corpus statistics obtained in our work are the following:
 
 |Entity                     |Count|n_files|
 |---------------------------|-----|-------|
@@ -123,7 +123,7 @@ Once the *.conll files* are read in order to reproduce the corpus statistics of 
 |B-iv-cont-q3	            |4	  |3      |
 |B-cv-cont-q3	            |4	  |3      |
 
-It can be seen that the frequency of total-participants is 1 less than in the paper but also there is a mismatch in the entities outcome and outcome-Measure which appears 15 and 4 times less than in the article. In the file `Preprocessing.ipynb` is the analysis of this mismatch but we can conclude that it is caused by using a different transformation from *.ann files* to *.conll files*. The chosen implementation merges two consecutive words tagged under the same entity so there is only one B-ner_tag instead of two different B-ner_tag. Here is an example:
+Apart from the case of the total-participants entity that we have already commented there is a mismatch in the entities outcome and outcome-Measure which appears 15 and 4 times less than in the article. In the file `Preprocessing.ipynb` is the analysis of this mismatch and we can conclude that it is caused by using a different transformation from *.ann files* to *.conll files*. The chosen implementation merges two consecutive chunks tagged under the same entity so there is only one B-ner_tag instead of two different B-ner_tag. Here is an example:
 
 The *.ann file* is:
 ```
@@ -150,20 +150,18 @@ A part of *.conll file* associated is:
 396543  24646362  I-outcome-Measure    943  944              )        11892
 396545  24646362  B-outcome-Measure    946  955      oxidative        11892
 396546  24646362  I-outcome-Measure    956  962         damage        11892
-396548  24646362  B-outcome-Measure    967  979   inflammatory        11892
-396549  24646362  I-outcome-Measure    980  990     biomarkers        11892
 ```
 
-It can be seen that T8 and T9 has been merged. All the cases where exist a discrepancy are caused by the same problem. Finding how to fix it in order to obtain the same values as the ones reported in the paper is left at the moment as further work.
+It can be seen that T8 and T9 has been merged. All the cases where exist a discrepancy are caused by the same problem.
 
 
 ### Preprocessing and creation of datasets understandable by the models.
 
-The authors of the paper do not provide precise information about how did they created the dataset for training and testing. The unique related information is that the data was splitted randomly in train set (80%) and test set (20%).
+The authors of the paper do not provide precise information about how did they created the dataset for training and testing. The unique related information is that the data was split randomly in train set (80%) and test set (20%).
 
-Our problem is in essence a multiclass classification with 26 entities, in BIO format each of them has its corresponding B-ner_tag and I-ner_tag and the class O (outside) is included. At the end, the model will have to learn to classify tokens into 53 entities/classes. 
+Our problem is in essence a multiclass classification with 26 entities, in IOB format each of them has its corresponding B-ner_tag and I-ner_tag and the class O (outside) is included. At the end, the model will have to learn to classify tokens into 53 entities/classes. 
 
-On the one hand, we have created one dataset without any default split in order to be able to manipulate it later. On the other hand, we create some dataset splits. Firstly, one following the same percentage of abstracts for each set as in the referenced paper 80% for train set and 20% for test set. Secondly, two more splits into train/validation/test sets to follow the standard approach and optimize hyperparameters. In order to do the split keeping a similar representation of all the entities in the sets we have ensured that the frequency of each entity in each set follows a similar distribution as the split (60-20-20 or 70-10-20). The process of the generation of the datasets can be seen in `Preprocessing.ipynb` and the uploaded datasets are in this [HuggingFace repository](https://huggingface.co/datasets/cuevascarlos/PICO-breast-cancer).
+On the one hand, we have created one dataset without any default split in order to be able to manipulate it later. On the other hand, we create some dataset splits. Firstly, one following the same percentage of abstracts for each set as in the referenced paper 80% for train set and 20% for test set. Secondly, one split into train/validation/test sets to follow the standard approach and optimize hyperparameters. In order to do the split keeping a similar representation of all the entities in the sets we have ensured that the frequency of each entity in each set follows a similar distribution as the split (80-10-10). The process of the generation of the datasets can be seen in `Preprocessing.ipynb` and the uploaded datasets are in this [HuggingFace repository](https://huggingface.co/datasets/cuevascarlos/PICO-breast-cancer).
 
 ### Fine-tune BERT-like models for NER task.
 
@@ -172,23 +170,23 @@ We have chosen the following pretrained models from HuggingFace:
 1. [BioBERT](https://huggingface.co/dmis-lab/biobert-base-cased-v1.2)
 2. [LongFormer](https://huggingface.co/allenai/longformer-base-4096)
 
-which are the models used in the paper. Additionally, we have consider another model
+which are the models used in the paper. 
 
-3. [PubMedBERT](https://huggingface.co/microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224)
+The hyperparameters used in Experiment 1 can be downloaded from `Hyperparameters/Experiment1.pkl`. For Experiment 2, we optimize the hyperparameters of the models with [Optuna Framework](https://optuna.org/). Concretely, the learning rate, weight decay and batch size. The hyperparameters obtained in the optimization are in `Hyperparameters/Experiment2_biobert.pkl` and `Hyperparameters/Experiment2_longformer.pkl`.
 
-Firstly, we optimize the hyperparameters of the models with [Optuna Framework](https://optuna.org/). Concretely, the learning rate, weight decay and batch size (if GPU capacity allows it, otherwise batch size will be 8). Secondly, we train several times the models to avoid bias caused by the random generation of initial weights. Finally, in order to compare the results for each entity we average the f1-scores and we also consider the maximum value. All this process is done in `TrainingNER.py`.
+Secondly, with these fixed hyperparameters we train 5 times the models to avoid bias caused by the random generation of initial weights. Finally, in order to compare the results for each entity we average the f1-scores and we also compute the maximum value. All this process is done in `TrainingNER.py`.
 
-The chosen metrics for analysing the performance of the models is [seqeval library](https://github.com/chakki-works/seqeval) in the strict mode. The models report good results but a deep error analysis has to be taken into account to see the type of errors is done.
+The chosen metrics for analysing the performance of the models are F1-scores computed using the [seqeval library](https://github.com/chakki-works/seqeval) in the default mode which as the author says it is compatible with the standard CoNLL evaluation.
 
 ## How to use
 
 Python version: 3.10.13
 
-1. For the data preprocessing it is crucial to clone the repository https://github.com/nlplab/brat.git
+1. For the data preprocessing it is crucial to clone the repository https://github.com/nlplab/brat.git and recommended to modify the function explained above.
 
-2. Data has to be in a folder named "data" where each of the files has its corresponding *.txt* and *.ann* files.
+2. Data has to be in a folder named "data" where each of the files has its corresponding *.txt* and *.ann* files. After preprocessing the *.conll* files will be saved in the same data folder.
 
-3. For training models with TrainingNER.py:
+3. For training models with `TrainingNER.py`:
      
     - Create the environment `conda env create -f environment.yml`
     - Download the processed data and models from HuggingFace.
@@ -198,6 +196,12 @@ Python version: 3.10.13
     - `mode` option has the possibilities train/test/inference.
 
         **Train mode:** This mode does hyperparamenter optimization, train several models with different seeds and finally evaluate on test set.
+
+        The hyperparameter optimization process is done if: 
+            1. There is no .pkl file with pre-defined hyperparameters in the directory where the outputs will be saved.
+            2. The variable `HYPERPARAMETERS_SEARCH` is set to True.
+
+            Otherwise, the hyperparameters obtained for BioBERT in Experiment 2 rounded to 3 decimals are defined by default. They can be modified to suit the user.
 
         **Test mode:** Evaluate the models saved locally on test set and compute the metrics at token level and word level (assigning the tag of the first subtoken, there exists the option of considering the most common entity in the subtokens) considering strict and default mode of `seqeval` framework and relaxed/lenient mode using `sklearn` library.
         Finally, a votation is done and the most common prediction with all the models is assigned to the word.
@@ -210,8 +214,27 @@ Python version: 3.10.13
 
     - `save_path` directory to save all the fine-tuned models, reports, figures and evaluations.
 
+    The script will create a folder inside the directory with the name `model_name-finetuned-ner`.
+
     - `read_file` directory to read the file and infer.
 
     - `text` raw text to do inference.
+
+    Example:
+    ```
+    python TrainingNER.py -mode "train" -d "../datasets/PICO-breast-cancer/80-10-10" -m "../models/biobert-base-cased-v1.2" -s "../outputs/80-10-10/biobert-base-cased-v1.2"
+    ```
+
+4. Statistical analysis with `StatisticalAnalysis.py`
+
+    The script has two arguments:
+
+    - `directory` Directory to search for files.
+
+    - `model` Model on which the analysis wants to be done.
+
+    The script is thought to read directories and files in the hierarchy they were saved with `TrainingNER.py`. For each of the experiments we have defined a folder where all the models trained under each of the splits where saved inside it. If `model` parameter is set to *biobert-base-cased-v1.2* only the reports saved in directories that start with this name will be compared, i.e., the BioBERT models will be analyzed. On the other hand, if `model` is *longformer-base-4096*, LongFomer models reports will be read and compared.
+
+    The script generates a .txt file where the p-values for all the entities, micro, macro and weighted F1-scores are computed and it is saved in the current directory. 
 
 
