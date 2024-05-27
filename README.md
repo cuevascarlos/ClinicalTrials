@@ -214,7 +214,7 @@ Python version: 3.10.13
 
     - `save_path` directory to save all the fine-tuned models, reports, figures and evaluations.
 
-    The script will create a folder inside the directory with the name `model_name-finetuned-ner`.
+        The script will create a folder inside the directory with the name `model_name-finetuned-ner`.
 
     - `read_file` directory to read the file and infer.
 
