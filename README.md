@@ -201,7 +201,7 @@ Python version: 3.10.13
             1. There is no .pkl file with pre-defined hyperparameters in the directory where the outputs will be saved.
             2. The variable `HYPERPARAMETERS_SEARCH` is set to True.
 
-            Otherwise, the hyperparameters obtained for BioBERT in Experiment 2 rounded to 3 decimals are defined by default. They can be modified to suit the user.
+        Otherwise, the hyperparameters obtained for BioBERT in Experiment 2 rounded to 3 decimals are defined by default. They can be modified to suit the user.
 
         **Test mode:** Evaluate the models saved locally on test set and compute the metrics at token level and word level (assigning the tag of the first subtoken, there exists the option of considering the most common entity in the subtokens) considering strict and default mode of `seqeval` framework and relaxed/lenient mode using `sklearn` library.
         Finally, a votation is done and the most common prediction with all the models is assigned to the word.
