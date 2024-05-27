@@ -1,4 +1,4 @@
-name: TER
+name: env_ct
 channels:
   - pytorch
   - defaults
@@ -8,6 +8,7 @@ dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=2_gnu
   - abseil-cpp=20211102.0=hd4dd3e8_0
+  - accelerate=0.27.2=pyhd8ed1ab_0
   - aiohttp=3.9.3=py310h5eee18b_0
   - aiosignal=1.2.0=pyhd3eb1b0_0
   - alembic=1.8.1=py310h06a4308_0
@@ -39,7 +40,7 @@ dependencies:
   - bzip2=1.0.8=h7b6447c_0
   - c-ares=1.19.1=h5eee18b_0
   - ca-certificates=2024.3.11=h06a4308_0
-  - certifi=2024.2.2=pyhd8ed1ab_0
+  - certifi=2024.2.2=py310h06a4308_0
   - cffi=1.16.0=py310h5eee18b_0
   - chardet=4.0.0=py310h06a4308_1003
   - charset-normalizer=2.0.4=pyhd3eb1b0_0
@@ -58,6 +59,7 @@ dependencies:
   - cudatoolkit=11.8.0=h6a678d5_0
   - cycler=0.11.0=pyhd3eb1b0_0
   - cyrus-sasl=2.1.28=h52b45da_1
+  - datasets=2.17.1=pyhd8ed1ab_0
   - dbus=1.13.18=hb2f20db_0
   - debugpy=1.6.7=py310h6a678d5_0
   - decorator=5.1.1=pyhd3eb1b0_0
@@ -198,6 +200,7 @@ dependencies:
   - ptyprocess=0.7.0=pyhd3eb1b0_2
   - pure_eval=0.2.2=pyhd3eb1b0_0
   - pyarrow=14.0.2=py310h1eedbd7_0
+  - pyarrow-hotfix=0.6=pyhd8ed1ab_0
   - pycparser=2.21=pyhd3eb1b0_0
   - pygments=2.15.1=py310h06a4308_1
   - pyopenssl=24.0.0=py310h06a4308_0
@@ -269,8 +272,3 @@ dependencies:
   - zipp=3.17.0=py310h06a4308_0
   - zlib=1.2.13=h5eee18b_0
   - zstd=1.5.5=hc292b87_0
-  - pip:
-      - accelerate==0.27.2
-      - datasets==2.17.1
-      - pyarrow-hotfix==0.6
-prefix: /mnt/beegfs/home/cuevas_villarmin/miniconda3/envs/TER
