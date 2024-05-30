@@ -180,37 +180,37 @@ The reported metrics for analysing the performance of the models are F1-scores c
 
 **Note.** The p-values reported in the paper were computed based on the strict mode reports using `seqeval` library instead of the default mode. Then, the p-values for each of the options between the F1-scores obtained with exact hyperparameters and rounded hyperparameters for BioBERT models are:
 
-    |Entity                     |strict |default|lenient|
-    |---------------------------|-------|-------|-------|
-    |total-participants	        |0.6015 |0.8345 |0.9168 |
-    |intervention-participants  |0.3472 |0.4647 |0.9168 |
-    |control-participants       |0.4647 |0.3472 |0.7540 |
-    |age	                    |0.2506 |0.4647 |0.6015 |
-    |eligibility	            |0.7540 |0.7540 |0.5309 |
-    |ethinicity                 |0.9168 |1.0000 |0.6761 |
-    |condition                  |0.6015 |0.6015 |0.7540 |
-    |location	                |0.7540 |1.0000 |1.0000 |
-    |intervention	            |0.2506 |0.3472 |0.4647 |
-    |control	                |0.0758 |0.0758 |0.7540 |
-    |outcome	                |0.2506 |0.0947 |0.7540 |
-    |outcome-Measure	        |0.8345 |0.7540 |0.7540 |
-    |iv-bin-abs	                |0.6015 |0.9168 |0.6015 |
-    |cv-bin-abs	                |0.2963 |0.8345 |0.4034 |
-    |iv-bin-percent	            |0.1172 |0.1172 |0.2506 |
-    |cv-bin-percent	            |0.0947 |0.1745 |0.6015 |
-    |iv-cont-mean	            |0.4647 |0.1437 |0.4034 |
-    |cv-cont-mean	            |0.4647 |0.4034 |0.7540 |
-    |iv-cont-median	            |0.7540 |0.9168 |0.6015 |
-    |cv-cont-median             |0.4034 |0.5309 |0.4034 |
-    |iv-cont-sd	                |0.5309 |0.7540 |0.9168 |
-    |cv-cont-sd	                |0.3472 |0.7540 |0.1745 |
-    |iv-cont-q1	                |nan    |nan    |nan    |
-    |cv-cont-q1	                |nan    |nan    |nan    |
-    |iv-cont-q3	                |nan	|nan    |nan    |
-    |cv-cont-q3	                |nan	|nan    |nan    |
-    |micro avg                  |0.6015 |0.4034 |0.4034 |
-    |macro avg                  |0.3472 |0.4647 |0.4647 |
-    |weighted avg               |0.3472 |0.3472 |0.9168 |
+|Entity                     |strict |default|lenient|
+|---------------------------|-------|-------|-------|
+|total-participants	        |0.6015 |0.8345 |0.9168 |
+|intervention-participants  |0.3472 |0.4647 |0.9168 |
+|control-participants       |0.4647 |0.3472 |0.7540 |
+|age	                    |0.2506 |0.4647 |0.6015 |
+|eligibility	            |0.7540 |0.7540 |0.5309 |
+|ethinicity                 |0.9168 |1.0000 |0.6761 |
+|condition                  |0.6015 |0.6015 |0.7540 |
+|location	                |0.7540 |1.0000 |1.0000 |
+|intervention	            |0.2506 |0.3472 |0.4647 |
+|control	                |0.0758 |0.0758 |0.7540 |
+|outcome	                |0.2506 |0.0947 |0.7540 |
+|outcome-Measure	        |0.8345 |0.7540 |0.7540 |
+|iv-bin-abs	                |0.6015 |0.9168 |0.6015 |
+|cv-bin-abs	                |0.2963 |0.8345 |0.4034 |
+|iv-bin-percent	            |0.1172 |0.1172 |0.2506 |
+|cv-bin-percent	            |0.0947 |0.1745 |0.6015 |
+|iv-cont-mean	            |0.4647 |0.1437 |0.4034 |
+|cv-cont-mean	            |0.4647 |0.4034 |0.7540 |
+|iv-cont-median	            |0.7540 |0.9168 |0.6015 |
+|cv-cont-median             |0.4034 |0.5309 |0.4034 |
+|iv-cont-sd	                |0.5309 |0.7540 |0.9168 |
+|cv-cont-sd	                |0.3472 |0.7540 |0.1745 |
+|iv-cont-q1	                |nan    |nan    |nan    |
+|cv-cont-q1	                |nan    |nan    |nan    |
+|iv-cont-q3	                |nan	|nan    |nan    |
+|cv-cont-q3	                |nan	|nan    |nan    |
+|micro avg                  |0.6015 |0.4034 |0.4034 |
+|macro avg                  |0.3472 |0.4647 |0.4647 |
+|weighted avg               |0.3472 |0.3472 |0.9168 |
 
 ## How to use
 
