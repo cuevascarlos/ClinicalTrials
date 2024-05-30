@@ -228,7 +228,7 @@ Python version: 3.10.13
     
     To ensure that the statistical analysis in the next step works, all runs performed in each experiment (i.e., for each data split) must be stored in the same folder. The directory corresponding to each run should start with the model name used, which will serve later as an identifier. To guarantee everything works correctly, it should either be *biobert-base-cased-v1.2* or *longformer-base-4096* (or the name of the version used).
 
-    **Remark.** Two things have to be changed manually for reproducibility in both experiments. Firstly, when defining the data_file dictionary, the line with key 'valid' must be commented out for Experiment 1. Secondly,the argument `eval_dataset` in Trainer during the training step (not in hyperparameters fine-tuning). To do Experiment 1 `eval_dataset=tokenized_datasets['test']`, by default it is set to `eval_dataset=tokenized_datasets['test']` for Experiment 2.
+    **Remark.** Two things have to be changed manually for reproducibility in both experiments. Firstly, when defining the data_file dictionary, the line with key 'valid' must be commented out for Experiment 1. Secondly,the argument `eval_dataset` in Trainer during the training step (not in hyperparameters fine-tuning). To do Experiment 1 `eval_dataset=tokenized_datasets['test']`, by default it is set to `eval_dataset=tokenized_datasets['valid']` for Experiment 2.
 
 4. Statistical analysis with `StatisticalAnalysis.py`
 
