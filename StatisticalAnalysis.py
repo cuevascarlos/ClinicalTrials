@@ -20,12 +20,10 @@ def find_directories_with_name(directory, name):
         list: A list of directory paths that match the given name or prefix.
     """
     matching_directories = []
-    for root, dirs, _ in os.walk(directory):
-        for dir_name in dirs:
-            if dir_name.startswith(name):
-                reports_dir = os.path.join(root, dir_name, 'REPORTS')
-                if os.path.exists(reports_dir):
-                    matching_directories.append(reports_dir)
+    directories = [d for d in os.listdir(directory) if d.split('/')[-1].startswith(name)]
+    for d in directories:
+        if os.path.exists(f"{directory}/{d}/{name}-finetuned-ner/REPORTS"):
+            matching_directories.append(f"{directory}/{d}/{name}-finetuned-ner/REPORTS")
     return matching_directories
 
 def find_files_with_name(directory, name):
@@ -39,12 +37,8 @@ def find_files_with_name(directory, name):
     Returns:
         list: A list of file paths that match the given name or prefix.
     """
-    matching_files = []
-    for root, _, files in os.walk(directory):
-        for file_name in files:
-            if file_name.startswith(name):
-                matching_files.append(os.path.join(root, file_name))
-    return matching_files
+    files = [f"{directory}/{f}" for f in os.listdir(directory) if f.startswith(name)]
+    return files
 
 def read_csv_files(file_name):
     """
