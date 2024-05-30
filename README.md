@@ -170,7 +170,7 @@ We have chosen the following pretrained models from HuggingFace:
 1. [BioBERT](https://huggingface.co/dmis-lab/biobert-base-cased-v1.2)
 2. [LongFormer](https://huggingface.co/allenai/longformer-base-4096)
 
-which are the models used in the paper. 
+which are the models used in the paper. We have download each of them locally in folders under the name `models/biobert-base-cased-v1.2` and `models/longformer-base-4096`. Another hierarchy does not guarantee that the scripts will work.
 
 The hyperparameters used in Experiment 1 can be downloaded from `Hyperparameters/Experiment1.pkl`. For Experiment 2, we optimize the hyperparameters of the models with [Optuna Framework](https://optuna.org/). Concretely, the learning rate, weight decay and batch size. The hyperparameters obtained in the optimization are in `Hyperparameters/Experiment2_biobert.pkl` and `Hyperparameters/Experiment2_longformer.pkl`.
 
@@ -220,10 +220,15 @@ Python version: 3.10.13
 
     - `text` raw text to do inference.
 
-    Example:
+    Example (Hypothetical scenario): If we want to train BioBERT models with the dataset of Experiment 2 we could use the following command
     ```
-    python TrainingNER.py -mode "train" -d "../datasets/PICO-breast-cancer/80-10-10" -m "../models/biobert-base-cased-v1.2" -s "../outputs/80-10-10/biobert-base-cased-v1.2"
+    python TrainingNER.py -mode "train" -d "../datasets/PICO-breast-cancer/Experiment2" -m "../models/biobert-base-cased-v1.2" -s "../outputs/Experiment2/biobert-base-cased-v1.2-1attempt"
     ```
+    In this case, the script will save everything in `../outputs/Experiment2/biobert-base-cased-v1.2-1attempt/biobert-base-cased-v1.2-finetuned-ner`. 
+    
+    To ensure that the statistical analysis in the next step works, all runs performed in each experiment (i.e., for each data split) must be stored in the same folder. The directory corresponding to each run should start with the model name used, which will serve later as an identifier. To guarantee everything works correctly, it should either be *biobert-base-cased-v1.2* or *longformer-base-4096* (or the name of the version used).
+
+
 
 4. Statistical analysis with `StatisticalAnalysis.py`
 
@@ -233,8 +238,15 @@ Python version: 3.10.13
 
     - `model` Model on which the analysis wants to be done.
 
-    The script is thought to read directories and files in the hierarchy they were saved with `TrainingNER.py`. For each of the experiments we have defined a folder where all the models trained under each of the splits where saved inside it. If `model` parameter is set to *biobert-base-cased-v1.2* only the reports saved in directories that start with this name will be compared, i.e., the BioBERT models will be analyzed. On the other hand, if `model` is *longformer-base-4096*, LongFomer models reports will be read and compared.
+    The script is thought to read directories and files in the hierarchy they were saved with `TrainingNER.py`. For each of the experiments we have defined a folder where all the models trained under each of the splits were saved inside it. If `model` parameter is set to *biobert-base-cased-v1.2* only the reports saved in directories that start with this name will be compared, i.e., the BioBERT models will be analyzed. On the other hand, if `model` is *longformer-base-4096*, LongFomer models reports will be read and compared.
 
-    The script generates a .txt file where the p-values for all the entities, micro, macro and weighted F1-scores are computed and it is saved in the `directory` introduced as input. 
+    The script generates a .txt file where the p-values for all the entities, micro, macro and weighted F1-scores are computed and it is saved in the `directory` introduced as input.
+
+    Example (Hypothetical scenario): We have run the TrainingNER.py script with split 80-10-10 several times to obtain different hyperparameters and we want know if there is statistically significant difference. Each of the executions are saved under the name *{model_name}/{i}attempt* where $i=1,2,3$ and model_name is biobert-base-cased-v1.2 and longformer-base-4096. If we want to compare only BioBERT models the following command will work.
+    ```
+    python StatisticalAnalysis.py -d "../outputs/Experiment2" -m "biobert-base-cased-v1.2"
+    ```
+
+
 
 
