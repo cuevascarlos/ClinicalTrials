@@ -176,7 +176,41 @@ The hyperparameters used in Experiment 1 can be downloaded from `Hyperparameters
 
 Secondly, with these fixed hyperparameters we train 5 times the models to avoid bias caused by the random generation of initial weights. Finally, in order to compare the results for each entity we average the f1-scores and we also compute the maximum value. All this process is done in `TrainingNER.py`.
 
-The chosen metrics for analysing the performance of the models are F1-scores computed using the [seqeval library](https://github.com/chakki-works/seqeval) in the default mode which as the author says it is compatible with the standard CoNLL evaluation.
+The reported metrics for analysing the performance of the models are F1-scores computed using the [seqeval library](https://github.com/chakki-works/seqeval) in the default mode which as the author says it is compatible with the standard CoNLL evaluation. However, the code computes at the same time the strict mode of `seqeval` (more information in the link above) and the relaxed/lenient mode using [sklearn library](https://scikit-learn.org/0.15/modules/generated/sklearn.metrics.classification_report.html).
+
+**Note.** The p-values reported in the paper were computed based on the strict mode reports using `seqeval` library instead of the default mode. Then, the p-values for each of the options between the F1-scores obtained with exact hyperparameters and rounded hyperparameters for BioBERT models are:
+
+    |Entity                     |strict |default|lenient|
+    |---------------------------|-------|-------|-------|
+    |total-participants	        |0.6015 |0.8345 |0.9168 |
+    |intervention-participants  |0.3472 |0.4647 |0.9168 |
+    |control-participants       |0.4647 |0.3472 |0.7540 |
+    |age	                    |0.2506 |0.4647 |0.6015 |
+    |eligibility	            |0.7540 |0.7540 |0.5309 |
+    |ethinicity                 |0.9168 |1.0000 |0.6761 |
+    |condition                  |0.6015 |0.6015 |0.7540 |
+    |location	                |0.7540 |1.0000 |1.0000 |
+    |intervention	            |0.2506 |0.3472 |0.4647 |
+    |control	                |0.0758 |0.0758 |0.7540 |
+    |outcome	                |0.2506 |0.0947 |0.7540 |
+    |outcome-Measure	        |0.8345 |0.7540 |0.7540 |
+    |iv-bin-abs	                |0.6015 |0.9168 |0.6015 |
+    |cv-bin-abs	                |0.2963 |0.8345 |0.4034 |
+    |iv-bin-percent	            |0.1172 |0.1172 |0.2506 |
+    |cv-bin-percent	            |0.0947 |0.1745 |0.6015 |
+    |iv-cont-mean	            |0.4647 |0.1437 |0.4034 |
+    |cv-cont-mean	            |0.4647 |0.4034 |0.7540 |
+    |iv-cont-median	            |0.7540 |0.9168 |0.6015 |
+    |cv-cont-median             |0.4034 |0.5309 |0.4034 |
+    |iv-cont-sd	                |0.5309 |0.7540 |0.9168 |
+    |cv-cont-sd	                |0.3472 |0.7540 |0.1745 |
+    |iv-cont-q1	                |nan    |nan    |nan    |
+    |cv-cont-q1	                |nan    |nan    |nan    |
+    |iv-cont-q3	                |nan	|nan    |nan    |
+    |cv-cont-q3	                |nan	|nan    |nan    |
+    |micro avg                  |0.6015 |0.4034 |0.4034 |
+    |macro avg                  |0.3472 |0.4647 |0.4647 |
+    |weighted avg               |0.3472 |0.3472 |0.9168 |
 
 ## How to use
 
@@ -240,48 +274,12 @@ Python version: 3.10.13
 
     The script is thought to read directories and files in the hierarchy they were saved with `TrainingNER.py`. For each of the experiments we have defined a folder where all the models trained under each of the splits were saved inside it. If `model` parameter is set to *biobert-base-cased-v1.2* only the reports saved in directories that start with this name will be compared, i.e., the BioBERT models will be analyzed. On the other hand, if `model` is *longformer-base-4096*, LongFomer models reports will be read and compared.
 
-    The script generates a .txt file where the p-values for all the entities, micro, macro and weighted F1-scores are computed and it is saved in the `directory` introduced as input.
+    The script generates a .txt file where the p-values for all the entities, micro, macro and weighted F1-scores are computed and it is saved in the `directory` introduced as input. To compute the significance test for each of the F1-scores (default/strict/lenient) modes the `name` argument of `find_files_with_name` function should be changed to *f1_scores_default_token_level*, *f1_scores_strict_token_level* or *f1_scores_sk_token_level* respectively. By default it is set to strict mode since those values ​​are those reported in the paper.
 
     Example (Hypothetical scenario): We have run the TrainingNER.py script with split 80-10-10 several times to obtain different hyperparameters and we want know if there is statistically significant difference. Each of the executions are saved under the name *{model_name}/{i}attempt* where $i=1,2,3$ and model_name is biobert-base-cased-v1.2 and longformer-base-4096. If we want to compare only BioBERT models the following command will work.
     ```
     python StatisticalAnalysis.py -d "../outputs/Experiment2" -m "biobert-base-cased-v1.2"
     ```
-
-    **Note.** The p-values reported in the paper were computed based on the strict mode reports using `seqeval` library instead of the default mode. To compute the significance test for each of the F1-scores (default/strict/lenient) modes the `name` argument of `find_files_with_name` function should be changed to *f1_scores_default_token_level*, *f1_scores_strict_token_level* or *f1_scores_sk_token_level* respectively. Then, the p-values for each of the options between the F1-scores obtained with exact hyperparameters and rounded hyperparameters for BioBERT models are
-
-    |Entity                     |strict |default|lenient|
-    |---------------------------|-------|-------|-------|
-    |total-participants	        |0.6015 |0.8345 |0.9168 |
-    |intervention-participants  |0.3472 |0.4647 |0.9168 |
-    |control-participants       |0.4647 |0.3472 |0.7540 |
-    |age	                    |0.2506 |0.4647 |0.6015 |
-    |eligibility	            |0.7540 |0.7540 |0.5309 |
-    |ethinicity                 |0.9168 |1.0000 |0.6761 |
-    |condition                  |0.6015 |0.6015 |0.7540 |
-    |location	                |0.7540 |1.0000 |1.0000 |
-    |intervention	            |0.2506 |0.3472 |0.4647 |
-    |control	                |0.0758 |0.0758 |0.7540 |
-    |outcome	                |0.2506 |0.0947 |0.7540 |
-    |outcome-Measure	        |0.8345 |0.7540 |0.7540 |
-    |iv-bin-abs	                |0.6015 |0.9168 |0.6015 |
-    |cv-bin-abs	                |0.2963 |0.8345 |0.4034 |
-    |iv-bin-percent	            |0.1172 |0.1172 |0.2506 |
-    |cv-bin-percent	            |0.0947 |0.1745 |0.6015 |
-    |iv-cont-mean	            |0.4647 |0.1437 |0.4034 |
-    |cv-cont-mean	            |0.4647 |0.4034 |0.7540 |
-    |iv-cont-median	            |0.7540 |0.9168 |0.6015 |
-    |cv-cont-median             |0.4034 |0.5309 |0.4034 |
-    |iv-cont-sd	                |0.5309 |0.7540 |0.9168 |
-    |cv-cont-sd	                |0.3472 |0.7540 |0.1745 |
-    |iv-cont-q1	                |nan    |nan    |nan    |
-    |cv-cont-q1	                |nan    |nan    |nan    |
-    |iv-cont-q3	                |nan	|nan    |nan    |
-    |cv-cont-q3	                |nan	|nan    |nan    |
-    ---------------------------------------------------------
-    |micro avg                  |0.6015 |0.4034 |0.4034 |
-    |macro avg                  |0.3472 |0.4647 |0.4647 |
-    |weighted avg               |0.3472 |0.3472 |0.9168 |
-
 
 
 
