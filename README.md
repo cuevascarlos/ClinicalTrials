@@ -88,9 +88,9 @@ T3	outcome 1024 1050	median follow-up durations
 T7	control 747 796	FAC (5-fluorouracil/doxorubicin/cyclophosphamide)
 ```
 
-It can be seen that T2 and T26 are overlapped and after check which is the correct one we can conclude that T26 is the wrong one with the wrong beginning and ending values. To avoid not considering either of the two it has been modified manually to have the same beginning and ending values, it could also have been omitted directly T26.
+It can be seen that T2 and T26 are overlapped and after check which is the correct one we can conclude that T26 is the wrong one with the wrong beginning and ending values. To avoid not considering either of the two we have removed manually T26.
 
-This change is the consequence of the frequency of the total-participants entity being a unit smaller than that reported by the authors.
+This change is the consequence of the frequency of the total-participants entity being a unit smaller than that reported by the authors. Apparently, they consider it twice.
 
 Once the *.conll files* are read in order to reproduce the corpus statistics of Table 1 in the [paper](https://aclanthology.org/2022.wiesp-1.4.pdf) as the entities are divided into B-ner_tag and I-ner_tag the amount of times each entity appears can be reported considering only the times B-ner_tag appears for each ner_tag. The corpus statistics obtained in our work are the following:
 
@@ -152,7 +152,7 @@ A part of *.conll file* associated is:
 396546  24646362  I-outcome-Measure    956  962         damage        11892
 ```
 
-It can be seen that T8 and T9 has been merged. All the cases where exist a discrepancy are caused by the same problem.
+It can be seen that T8 and T9 has been considered as a single chunk. All the cases where exist a difference are caused by the same problem. So, we can infer that the authors of the dataset consider them separately.
 
 
 ### Preprocessing and creation of datasets understandable by the models.
@@ -208,7 +208,7 @@ Python version: 3.10.13
 
         **Inference mode:** Mode that infers over a given text or text file. It generates a .txt file with the spans that have been identified as entities, along with their start and end in the text, as well as the probability with which they have been classified.
 
-    - `data` directory that contains the .parquet files of the train, development and test set.
+    - `data` directory that contains the .parquet files of the train, validation and test set.
 
     - `model` directory that contains the model that is going to be fine-tuned on NER.
 
@@ -235,6 +235,6 @@ Python version: 3.10.13
 
     The script is thought to read directories and files in the hierarchy they were saved with `TrainingNER.py`. For each of the experiments we have defined a folder where all the models trained under each of the splits where saved inside it. If `model` parameter is set to *biobert-base-cased-v1.2* only the reports saved in directories that start with this name will be compared, i.e., the BioBERT models will be analyzed. On the other hand, if `model` is *longformer-base-4096*, LongFomer models reports will be read and compared.
 
-    The script generates a .txt file where the p-values for all the entities, micro, macro and weighted F1-scores are computed and it is saved in the current directory. 
+    The script generates a .txt file where the p-values for all the entities, micro, macro and weighted F1-scores are computed and it is saved in the `directory` introduced as input. 
 
 
