@@ -93,7 +93,7 @@ if __name__ == '__main__':
         for file in files:
             data[file] = read_csv_files(file)
 
-    f = open(f'./wilcoxon_test_{model}.txt', 'w')
+    f = open(f'{directory}/wilcoxon_test_{model}.txt', 'w')
     for i, elem in enumerate(data):
         for j in range(i+1,len(data)):
             against = list(data.items())[j][0]
