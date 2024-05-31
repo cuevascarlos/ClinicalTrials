@@ -57,7 +57,7 @@ def eliminate_overlaps(textbounds):
 
 At this point we have a *.conll file* for each text in IOB format which are the files we will work with.
 
-**REMARK:** The file *15023242.ann* contains an overlapped annotation that the tool chosen removes.
+**REMARK.** The tool we have used to tranform data into CoNLL with IOB format removes overlapped annotations. The orginal file *15023242.ann* contains one:
 
 ```
 T1	intervention 0 10	Paclitaxel
