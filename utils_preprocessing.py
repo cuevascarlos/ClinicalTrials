@@ -2,7 +2,11 @@ import os
 from datasets import Dataset, Features, Value, Sequence, ClassLabel
 import pandas as pd
 
-
+'''
+Script with functions to preprocess the data and analyze the mismatch between the data and the .ann files
+Author: Carlos Cuevas Villarmin
+Last update: 31/05/2024
+'''
 
 def ReadFiles(folder_path):
     '''
@@ -57,10 +61,10 @@ def CountNumberFiles(files, B_label, ann_label, data_df, Freq, feedback=True):
                         the ids of the files where the label is in the DataFrame
     '''
     #Get the files['id'] where ann_label is in files['ann'] 
-    id_mask = list(map(lambda x: ann_label in x.split(), files['ann']))
-                                                                                        #To avoid to identify the label in the words tagged
-    #Get the ids where id_mask is True                                                  #this way of counting appearence in the file
-    from itertools import compress                                                      #should be modified
+    id_mask = list(map(lambda file: any((ann_label == str(line.split('\t')[1].split()[0])) for line in file.split('\n') if len(line) > 1), files['ann']))
+                                                                                        
+    #Get the ids where id_mask is True                                                  
+    from itertools import compress                                                      
     ids_ann_files = list(compress(files['id'], id_mask))
     
     #Get the ids where B_label is in data['label']
@@ -328,15 +332,17 @@ def MapLabels(words_labels, tag2idx):
 
 
 
-def CreateDataset(words, words_labels, tag_values):
+def CreateDataset(words, words_labels, tag_values, IDS):
     '''
     Function that creates a dataset with id, words and labels
     Args:
         words: list of lists of words
         words_labels: list of lists of labels
+        tag_values: list of the labels names
+        IDS: list of the ids of the files
     Returns:
         dataset: dataset with id, words and labels
     '''
     features = Features({'id': Value(dtype='string', id=None), 'tokens': Sequence(feature=Value(dtype='string', id=None), length=-1, id=None), 'ner_tags': Sequence(feature=ClassLabel(names=tag_values))})
-    dataset = Dataset.from_dict({"id": range(len(words)), "tokens": words, "ner_tags": words_labels}, features = features)
+    dataset = Dataset.from_dict({"id": IDS, "tokens": words, "ner_tags": words_labels}, features = features)
     return dataset
