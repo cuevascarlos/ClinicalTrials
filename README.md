@@ -223,7 +223,7 @@ Python version: 3.10.13
 3. For training models with `TrainingNER.py`:
      
     - Create the environment `conda env create -f environment.yml`
-    - Download the processed data (for example in `./datasets/Experiment*`) and models from HuggingFace (`./models/*`).
+    - Download the processed data (for example in `./datasets/Experiment*`) and models from HuggingFace (`./models/*`). If models are not save as this it is not ensured that the code will work.
 
     The script has several arguments:
 
