@@ -703,7 +703,7 @@ if __name__ == '__main__':
                 print(f"Trial {trial.number}")   
                 model.to(device)
 
-                if model_checkpoint == '../models/longformer-base-4096':
+                if model_checkpoint == './models/longformer-base-4096':
                     hyperparameters_space = {'per_device_train_batch_size': trial.suggest_categorical("per_device_train_batch_size", [8, 16]),
                                     'per_device_eval_batch_size': trial.suggest_categorical("per_device_eval_batch_size", [8, 16])}
                 else:
