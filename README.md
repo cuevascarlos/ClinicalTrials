@@ -257,7 +257,7 @@ Python version: 3.10.13
     - `text` raw text to do inference.
 
     - `experiment` (Just for reproducibility interests) The number of the experiment it is aimed to be reproduced "1" or "2". It automates some parts of the code that in other case should be changed manually from one experiment to another.
-    If `--experiment "1"` then in `HYPERPARAMETERS_SEARCH` is set to false and hyperparameter optimization is not done.
+    If `--experiment "1"`, `HYPERPARAMETERS_SEARCH` is set to false and hyperparameter optimization is not done.
 
 
     To run each experiment with the same hyperparameters it can be done as:
@@ -279,8 +279,6 @@ Python version: 3.10.13
     The experiment argument can be removed for experiment 2 and the -hy argument can be deleted in Experiment 1 in case default values have not been modified. If interested in carrying out hyperparameter optimization, the -hy argument have to be omitted for Experiment 2. 
 
     To ensure that the statistical analysis in the next step works, all runs performed in each experiment (i.e., for each data split) must be stored in the same folder. The directory corresponding to each run should start with the model name used, which will serve later as an identifier. To guarantee everything works correctly, it should either be *biobert-base-cased-v1.2* or *longformer-base-4096* (or the name of the version used).
-
-    **Remark.** Two things have to be changed manually for reproducibility in both experiments. Firstly, when defining the data_file dictionary, the line with key 'valid' must be commented out for Experiment 1. Secondly,the argument `eval_dataset` in Trainer during the training step (not in hyperparameters fine-tuning). To do Experiment 1 `eval_dataset=tokenized_datasets['test']`, by default it is set to `eval_dataset=tokenized_datasets['valid']` for Experiment 2.
 
 4. Statistical analysis with `StatisticalAnalysis.py`
 
