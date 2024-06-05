@@ -274,8 +274,8 @@ def compute_metrics(p):
 
     results = {
           'accuracy': accuracy_score(true_labels, true_predictions),
-          'f1': f1_score(true_labels, true_predictions),
-          #'classification_report': classification_report(true_labels, true_predictions, mode='strict', scheme= IOB2, output_dict=True)    
+          'f1': f1_score(true_labels, true_predictions, zero_division=0),
+          #'classification_report': classification_report(true_labels, true_predictions, mode='strict', scheme= IOB2, output_dict=True, zero_division=0)    
     }
     return results
 
@@ -302,7 +302,7 @@ def compute_objective(predictions, labels, label_list):
     # Remove ignored index (special tokens)
     true_predictions, true_labels = generate_true_predictions_and_labels(predictions, labels, label_list)
     
-    return f1_score(true_labels, true_predictions)
+    return f1_score(true_labels, true_predictions, zero_division=0)
 
 def generate_csv_comparison(path_data, type_metrics = ['sk', 'strict', 'default'], type_level = ['token_level', 'word_level']):
     '''
@@ -323,6 +323,7 @@ def generate_csv_comparison(path_data, type_metrics = ['sk', 'strict', 'default'
     for t in type_metrics: 
         for x in type_level:
             #Read the data
+            print(f"Preparing csv comparison file... metric {t} - level {x}")
             files = [file for file in os.listdir(path_data) if re.match(f"^{t}_test_report_\d+.*_{x}\.csv$", file)]
             files.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
 
@@ -366,8 +367,6 @@ def generate_csv_comparison(path_data, type_metrics = ['sk', 'strict', 'default'
             f1_scores['Max diff Longformer'] = (f1_scores['Max'] - f1_scores['Longformer_paper']).round(4)
 
             f1_scores = f1_scores.drop(columns=['Just mean'])
-
-            print("Saving file...")
             f1_scores.to_csv(f"{path_data}/f1_scores_{t}_{x}.csv", sep=',')
 
 def generate_learning_curves(path_data):
@@ -501,11 +500,11 @@ def generate_reports(predictions, labels, label_list, save_path, i):
     make_confusion_matrix(cm, f"{save_path}/cm_{i}.png", categories=categories, cmap='viridis', figsize=(20,20), title='Confusion matrix', cbar = False, percent = False)
 
     # IO format
-    class_report_lenient = classification_report(true_labels, true_predictions, output_dict=True)
+    class_report_lenient = classification_report(true_labels, true_predictions, output_dict=True, zero_division=0)
     pd.DataFrame(class_report_lenient).transpose().to_csv(f"{save_path}/default_test_report_{i}.csv")
 
     # IOB2 format
-    class_report_strict = classification_report(true_labels, true_predictions, mode = 'strict', scheme=IOB2, output_dict=True)
+    class_report_strict = classification_report(true_labels, true_predictions, mode = 'strict', scheme=IOB2, output_dict=True, zero_division=0)
     pd.DataFrame(class_report_strict).transpose().to_csv(f"{save_path}/strict_test_report_{i}.csv")
 
     # Remove ignored index (special tokens) and outside tokens
@@ -514,14 +513,14 @@ def generate_reports(predictions, labels, label_list, save_path, i):
     aux_true_predictions = [label for full_pred in sk_true_predictions for label in full_pred]
 
     # Lenient mode
-    class_report_sk = classification_report_sk(aux_true_labels, aux_true_predictions, output_dict=True)
+    class_report_sk = classification_report_sk(aux_true_labels, aux_true_predictions, output_dict=True, zero_division=0)
     pd.DataFrame(class_report_sk).transpose().to_csv(f"{save_path}/skp_test_report_{i}.csv")
 
     #Removing the prefixes
     aux_true_labels = [label.split('-',1)[1] if len(label.split('-')) > 1 else label for full_true in sk_true_labels for label in full_true]
     aux_true_predictions = [label.split('-',1)[1] if len(label.split('-')) > 1 else label for full_pred in sk_true_predictions for label in full_pred]
 
-    class_report_sk = classification_report_sk(aux_true_labels, aux_true_predictions, output_dict=True)
+    class_report_sk = classification_report_sk(aux_true_labels, aux_true_predictions, output_dict=True, zero_division=0)
     pd.DataFrame(class_report_sk).transpose().to_csv(f"{save_path}/sk_test_report_{i}.csv")
 
 def read_txt_file(file_path):
@@ -552,6 +551,8 @@ def read_txt_file(file_path):
 
 
 BATCH_SIZE = 16
+LEARNING_RATE = 2e-5
+WEIGHT_DECAY = 0.01
 seed = 42
 HYPERPARAMETERS_SEARCH = True
 os.environ['PYTHONHASHSEED']=str(seed)
@@ -563,57 +564,67 @@ if __name__ == '__main__':
     #Define the argument parser
     parser = argparse.ArgumentParser(description='Fine-tune a model on NER task')
     parser.add_argument('-mode', '--mode', help='Mode to run the script train/test/inference', required=True)
-    parser.add_argument('-d','--data', help='Dataset to work with', required=False)
     parser.add_argument('-m','--model', help='Model checkpoint', required=True)
+    parser.add_argument('-d','--data', help='Dataset to work with', required=False)
     parser.add_argument('-s','--save_path', help='Path to save the model', required=False)
+    parser.add_argument('-hy','--hyperparam', help='Directory to .pkl file with predefined hyperparameters', required=False)
     parser.add_argument('-t','--task', help='Task to perform', required=False)
     parser.add_argument('-txt', '--read_file', help='Directory to read and infer', required=False)
     parser.add_argument('-text', '--text', help='Text to do inference', required=False)
 
+    #Only interesting to facilitate the reproduction task
+    parser.add_argument('-exp','--experiment', help='Number of the experiment that wants to be reproduced (1 or 2)', required=False)
+
     #Parse the arguments
     args = vars(parser.parse_args())
     model_checkpoint = args['model']
+    model_name = model_checkpoint.split("/")[-1]
 
-    if args['task'] != None:
+    if args['task'] is not None:
         task = args['task']
     else:
         task = 'ner'
 
-    model_name = model_checkpoint.split("/")[-1]
-
-    if args['save_path'] != None:
+    if args['save_path'] is not None:
         save_path = f"{args['save_path']}/{model_name}-finetuned-{task}"
-
     else:
         save_path = f"./{model_name}-finetuned-{task}"
     
+    if args['mode'] == 'test':
+        if args['data'] is None:
+            raise ValueError("When mode is 'test', 'data' must be defined.")
+        else:
+            MODE = 'test'
+            data_name = args['data'].split("/")[-1]
+            if not os.path.exists(f"{save_path}/REPORTS"):
+                os.makedirs(f"{save_path}/REPORTS")
+            if not os.path.exists(f"{save_path}/Evaluations"):
+                os.makedirs(f"{save_path}/Evaluations")
 
-    if args['mode'] == 'test' and args['data'] is None:
-        raise ValueError("When mode is 'test', 'data' must be defined.")
+    elif args['mode'] == 'train':
+        if args['data'] is None:
+            raise ValueError("When mode is 'train', 'data' must be defined.")
+        else:
+            MODE = 'train'
+            data_name = args['data'].split("/")[-1]
+            if not os.path.exists(f"{save_path}/REPORTS"):
+                os.makedirs(f"{save_path}/REPORTS")
 
-    elif args['mode'] == 'test' and args['data'] is not None:
-        MODE = 'test'
-        data_name = args['data'].split("/")[-1]
-        if not os.path.exists(f"{save_path}/REPORTS"):
-            os.makedirs(f"{save_path}/REPORTS")
-
-    elif args['mode'] == 'train' and args['data'] is None:
-        raise ValueError("When mode is 'train', 'data' must be defined.")
-    elif args['mode'] == 'train' and args['data'] is not None:
-        MODE = 'train'
-        data_name = args['data'].split("/")[-1]
-        if not os.path.exists(f"{save_path}/REPORTS"):
-            os.makedirs(f"{save_path}/REPORTS")
-
-    elif args['mode'] == 'inference' and args['read_file'] is None and args['text'] is None:
-        raise ValueError("When mode is 'inference', at least one of 'read_file' or 'text' must be defined.")
+        if args['experiment'] == '1':
+            HYPERPARAMETERS_SEARCH = False
+        #elif args['experiment'] == '2':
+        #    HYPERPARAMETERS_SEARCH = True
+        
     elif args['mode'] == 'inference':
-        if args['read_file'] is not None:
+        if args['read_file'] is None and args['text'] is None:
+            raise ValueError("When mode is 'inference', at least one of 'read_file' or 'text' must be defined.")
+        elif args['read_file'] is not None:
             file_name = args['read_file'].split("/")[-1].split(".")[0]
             text = read_txt_file(args['read_file'])
         elif args['text'] is not None:
             file_name = 'example'
             text = args['text']
+
         MODE = 'inference'
         if not os.path.exists(f"{save_path}/INFERENCE"):
             os.makedirs(f"{save_path}/INFERENCE")
@@ -639,9 +650,16 @@ if __name__ == '__main__':
     #Load the dataset
     if MODE != "inference":
         print("LOADING DATASET...")
-        data_files = {'train':f"train-00000-of-00001.parquet", 
-                    'valid': f"valid-00000-of-00001.parquet", 
-                    'test': f"test-00000-of-00001.parquet"}
+        
+        if args['experiment'] == '1':
+            data_files = {'train': 'train-00000-of-00001.parquet', 
+                        'valid': "test-00000-of-00001.parquet",
+                        'test': 'test-00000-of-00001.parquet'}
+        else:
+            data_files = {'train':"train-00000-of-00001.parquet", 
+                        'valid': "valid-00000-of-00001.parquet",  
+                        'test': "test-00000-of-00001.parquet"}
+
         datasets = load_dataset('parquet', data_dir = args['data'], data_files=data_files)
         print(datasets)
 
@@ -657,7 +675,7 @@ if __name__ == '__main__':
 
 
 
-    if MODE == 'train':
+    if MODE == 'train':        
         random.seed(seed)
 
         ####TO CONTROL RANDOMNESS####
@@ -666,89 +684,103 @@ if __name__ == '__main__':
         torch.random.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         #############################
-
-        # Check if the hyperparameters exist
-        pkl_files = glob.glob(os.path.join(save_path, "*.pkl"))
-        if pkl_files:
-            #Open the file
-            with open(pkl_files[0], 'rb') as file:
-                hyperparameters_loaded = pickle.load(file)
-                print(f"Imported hyperparameters: \n\t {hyperparameters_loaded}")
-        else:
-            if HYPERPARAMETERS_SEARCH:
-                #Hyperparameter fine-tuning
-                print("FINE-TUNING HYPERPARAMETERS...")
-                def objective(trial: optuna.Trial):
-                    model = AutoModelForTokenClassification.from_pretrained(model_checkpoint, num_labels=len(label_list), label2id=labelxids, id2label=idsxlabel)
-                    print(f"Trial {trial.number}")   
-                    model.to(device)
-
-                    args = TrainingArguments(
-                    save_path+"/HyperparametersSearch",
-                    learning_rate=trial.suggest_float("learning_rate", low=2e-5, high=5e-5, log=True),
-                    weight_decay=trial.suggest_float("weight_decay", 4e-5, 0.01, log=True),
-                    per_device_train_batch_size= trial.suggest_categorical("per_device_train_batch_size", [8, 16, 32]),
-                    per_device_eval_batch_size= trial.suggest_categorical("per_device_eval_batch_size", [8, 16, 32]),
-                    num_train_epochs=10,
-                    evaluation_strategy = "epoch",
-                    save_strategy="epoch",
-                    load_best_model_at_end=True,
-                    greater_is_better = False,
-                    eval_accumulation_steps=1,
-                    )
-
-                    data_collator = DataCollatorForTokenClassification(tokenizer)
-
-                    trainer = Trainer(
-                    model,
-                    args,
-                    train_dataset=tokenized_datasets['train'],
-                    eval_dataset=tokenized_datasets['valid'],
-                    data_collator=data_collator,
-                    tokenizer=tokenizer,
-                    )
-                
-                    trainer.train()
-                    if device.type == 'cuda':
-                        print(torch.cuda.get_device_name(0))
-                        print('Memory Usage:')
-                        print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
-                        print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
-
-                    #We want to maximize the f1-score in validation set
-                    predictions, labels, metrics = trainer.predict(tokenized_datasets['valid'])  
-                    print(f"Validation set metrics: \n {metrics}")
-                    f1_value = compute_objective(predictions, labels, label_list)
-                    print(f"F1-Score: {f1_value}")
-                    return f1_value
-                    
-
-                # We want to maximize the f1-score in validation set
-                study = optuna.create_study(study_name="hyper-parameter-search", direction="maximize")
-                study.optimize(func=objective, n_trials=15)
-                print(f"Best F1-score: {study.best_value}")
-                print(f"Best parameters: {study.best_params}")
-                print(f"Best trial: {study.best_trial}")
-
-                file = open(f"{save_path}/best_params.pkl", "wb")
-                pickle.dump(study.best_params, file)
-                file.close()
-                hyperparameters_loaded = study.best_params
-            
-            else:
-                #Rounded BioBERT
-                hyperparameters_loaded = {'learning_rate': 4.976e-05,
-                                          'weight_decay': 0.003,
-                                          'per_device_train_batch_size': 8,
-                                          'per_device_eval_batch_size': 16}
-                print(f"Training with hyperparameters: \n\t {hyperparameters_loaded}")
-                
         
+        if args['hyperparam'] != None:
+            #Case when hyperparameters are provided
+            with open(args['hyperparam'], 'rb') as file:
+                hyperparameters_loaded = pickle.load(file)
+            #HYPERPARAMETERS_SEARCH = False
+        elif glob.glob(os.path.join(save_path, "*.pkl")):
+            #Case when hyperparameter optimization has already been done by the script
+            with open(glob.glob(os.path.join(save_path, "*.pkl")), 'rb') as file:
+                hyperparameters_loaded = pickle.load(file)
+            #HYPERPARAMETERS_SEARCH = False
+        elif HYPERPARAMETERS_SEARCH:
+            #Hyperparameter fine-tuning
+            print("FINE-TUNING HYPERPARAMETERS...")
+            def objective(trial: optuna.Trial):
+                model = AutoModelForTokenClassification.from_pretrained(model_checkpoint, num_labels=len(label_list), label2id=labelxids, id2label=idsxlabel)
+                print(f"Trial {trial.number}")   
+                model.to(device)
+
+                if model_checkpoint == '../models/longformer-base-4096':
+                    hyperparameters_space = {'per_device_train_batch_size': trial.suggest_categorical("per_device_train_batch_size", [8, 16]),
+                                    'per_device_eval_batch_size': trial.suggest_categorical("per_device_eval_batch_size", [8, 16])}
+                else:
+                    hyperparameters_space = {'per_device_train_batch_size': trial.suggest_categorical("per_device_train_batch_size", [8, 16, 32]),
+                                'per_device_eval_batch_size': trial.suggest_categorical("per_device_eval_batch_size", [8, 16, 32])}
+
+
+                args = TrainingArguments(
+                save_path+"/HyperparametersSearch",
+                learning_rate=trial.suggest_float("learning_rate", low=2e-5, high=5e-5, log=True),
+                weight_decay=trial.suggest_float("weight_decay", 4e-5, 0.01, log=True),
+                num_train_epochs=10,
+                evaluation_strategy = "epoch",
+                save_strategy="epoch",
+                load_best_model_at_end=True,
+                greater_is_better = False,
+                eval_accumulation_steps=1,
+                **hyperparameters_space
+                )
+
+                data_collator = DataCollatorForTokenClassification(tokenizer)
+
+                trainer = Trainer(
+                model,
+                args,
+                train_dataset=tokenized_datasets['train'],
+                eval_dataset=tokenized_datasets['valid'],
+                data_collator=data_collator,
+                tokenizer=tokenizer,
+                )
+            
+                trainer.train()
+                if device.type == 'cuda':
+                    #print(torch.cuda.get_device_name(0))
+                    print('Memory Usage:')
+                    print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
+                    print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
+
+                #We want to maximize the f1-score in validation set
+                predictions, labels, metrics = trainer.predict(tokenized_datasets['valid'])  
+                print(f"Validation set metrics: \n {metrics}")
+                f1_value = compute_objective(predictions, labels, label_list)
+                print(f"F1-Score: {f1_value}")
+                return f1_value
+
+            # We want to maximize the f1-score in validation set
+            study = optuna.create_study(study_name="hyper-parameter-search", direction="maximize")
+            study.optimize(func=objective, n_trials=15)
+            print(f"Best F1-score: {study.best_value}")
+            print(f"Best parameters: {study.best_params}")
+            #print(f"Best trial: {study.best_trial}")
+
+            file = open(f"{save_path}/best_params.pkl", "wb")
+            pickle.dump(study.best_params, file)
+            file.close()
+            hyperparameters_loaded = study.best_params
+        
+        else:
+            #Case when hyperparameter optimization is not wanted and has been defined manually or in Experiment 1
+            hyperparameters_loaded = {'learning_rate': LEARNING_RATE,
+                                    'weight_decay': WEIGHT_DECAY,
+                                    'per_device_train_batch_size': BATCH_SIZE,
+                                    'per_device_eval_batch_size': BATCH_SIZE
+                                    }
+            
+        
+        #In case of providing a .pkl file without any of the four hyperparameters considered we set them to the ones of Experiment 1
         if 'per_device_train_batch_size' not in list(hyperparameters_loaded.keys()):
             hyperparameters_loaded['per_device_train_batch_size'] = BATCH_SIZE
         if 'per_device_eval_batch_size' not in list(hyperparameters_loaded.keys()):
             hyperparameters_loaded['per_device_eval_batch_size']  = BATCH_SIZE
+        if 'learning_rate' not in list(hyperparameters_loaded.keys()):
+            hyperparameters_loaded['learning_rate'] = LEARNING_RATE
+        if 'weight_decay' not in list(hyperparameters_loaded.keys()):
+            hyperparameters_loaded['weight_decay'] = WEIGHT_DECAY
         
+        print(f"Training with hyperparameters: \n {hyperparameters_loaded}")
         #TRAINING
 
         for i in range(5):
@@ -759,6 +791,7 @@ if __name__ == '__main__':
             model.to(device)
 
             model_name = model_checkpoint.split("/")[-1]
+
             args = TrainingArguments(
                 f"{save_path}/Training_{i}",
                 num_train_epochs=40,
@@ -854,9 +887,6 @@ if __name__ == '__main__':
         dataset_annotated = Dataset.from_dict(dataset_dict)
 
         # Generate the files
-        if not os.path.exists(f"{save_path}/Evaluations"):
-            os.makedirs(f"{save_path}/Evaluations")
-
         most_common_predictions = []
         for j in range(len(dataset_annotated['file'])):
             csv_dict = {'token': [], 'True label': [], 'Most common': []}
