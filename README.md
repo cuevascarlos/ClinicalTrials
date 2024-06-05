@@ -223,7 +223,7 @@ Python version: 3.10.13
 3. For training models with `TrainingNER.py`:
      
     - Create the environment `conda env create -f environment.yml`
-    - Download the processed data and models from HuggingFace.
+    - Download the processed data (for example in `./datasets/Experiment*`) and models from HuggingFace (`./models/*`).
 
     The script has several arguments:
 
@@ -232,34 +232,52 @@ Python version: 3.10.13
         **Train mode:** This mode does hyperparamenter optimization, train several models with different seeds and finally evaluate on test set.
 
         The hyperparameter optimization process is done if: 
-            1. There is no .pkl file with pre-defined hyperparameters in the directory where the outputs will be saved.
+            1. There is no .pkl file with pre-defined hyperparameters in the directory where the outputs will be saved or a directory to read a .pkl file is not provided.
             2. The variable `HYPERPARAMETERS_SEARCH` is set to True.
 
-        Otherwise, the hyperparameters obtained for BioBERT in Experiment 2 rounded to 3 decimals are defined by default. They can be modified to suit the user.
+        Otherwise, the hyperparameters used in Experiment 1 are defined by default. They can be modified to suit the user.
 
         **Test mode:** Evaluate the models saved locally on test set and compute the metrics at token level and word level (assigning the tag of the first subtoken, there exists the option of considering the most common entity in the subtokens) considering strict and default mode of `seqeval` framework and relaxed/lenient mode using `sklearn` library.
         Finally, a votation is done and the most common prediction with all the models is assigned to the word.
 
         **Inference mode:** Mode that infers over a given text or text file. It generates a .txt file with the spans that have been identified as entities, along with their start and end in the text, as well as the probability with which they have been classified.
 
-    - `data` directory that contains the .parquet files of the train, validation and test set.
-
     - `model` directory that contains the model that is going to be fine-tuned on NER.
+
+    - `data` directory that contains the .parquet files of the train, validation and test set.
 
     - `save_path` directory to save all the fine-tuned models, reports, figures and evaluations.
 
         The script will create a folder inside the directory with the name `model_name-finetuned-ner`.
 
+    - `hyperparam` directory to read the .pkl file with desired hyperparameters.
+
     - `read_file` directory to read the file and infer.
 
     - `text` raw text to do inference.
 
-    Example (Hypothetical scenario): If we want to train BioBERT models with the dataset of Experiment 2 we could use the following command
+    - `experiment` (Just for reproducibility interests) The number of the experiment it is aimed to be reproduced "1" or "2". It automates some parts of the code that in other case should be changed manually from one experiment to another.
+    If `--experiment "1"` then in `HYPERPARAMETERS_SEARCH` is set to false and hyperparameter optimization is not done.
+
+
+    To run each experiment with the same hyperparameters it can be done as:
     ```
-    python TrainingNER.py -mode "train" -d "../datasets/PICO-breast-cancer/Experiment2" -m "../models/biobert-base-cased-v1.2" -s "../outputs/Experiment2/biobert-base-cased-v1.2-1attempt"
+    #Experiment 1 - BioBERT
+    python TrainingNER.py -mode "train" -d "./datasets/Experiment1" -m "./models/biobert-base-cased-v1.2" -s "./outputs/Experiment1/biobert-base-cased-v1.2-1attempt" -exp "1" -hy "./Hyperparameters/Experiment1.pkl
+
+    #Experiment 1 -LongFormer
+    python TrainingNER.py -mode "train" -d "./datasets/Experiment1" -m "./models/longformer-base-4096" -s "./outputs/Experiment1/longformer-base-4096-1attempt" -exp "1" -hy "./Hyperparameters/Experiment1.pkl
+
+    #Experiment 2 - BioBERT
+    python TrainingNER.py -mode "train" -d "./datasets/Experiment2" -m "./models/biobert-base-cased-v1.2" -s "./outputs/Experiment2/biobert-base-cased-v1.2-1attempt" -exp "2" -hy "./Hyperparameters/Experiment2_biobert.pkl
+
+    #Experiment 2 - LongFormer 
+    python TrainingNER.py -mode "train" -d "./datasets/Experiment2" -m "./models/longformer-base-4096" -s "./outputs/Experiment2/longformer-base-4096-1attempt" -exp "2" -hy "./Hyperparameters/Experiment2_longformer.pkl
     ```
-    In this case, the script will save everything in `../outputs/Experiment2/biobert-base-cased-v1.2-1attempt/biobert-base-cased-v1.2-finetuned-ner`. 
-    
+    The script will save everything in directories as for example `./outputs/Experiment2/biobert-base-cased-v1.2-1attempt/biobert-base-cased-v1.2-finetuned-ner`. 
+
+    The experiment argument can be removed for experiment 2 and the -hy argument can be deleted in Experiment 1 in case default values have not been modified. If interested in carrying out hyperparameter optimization, the -hy argument have to be omitted for Experiment 2. 
+
     To ensure that the statistical analysis in the next step works, all runs performed in each experiment (i.e., for each data split) must be stored in the same folder. The directory corresponding to each run should start with the model name used, which will serve later as an identifier. To guarantee everything works correctly, it should either be *biobert-base-cased-v1.2* or *longformer-base-4096* (or the name of the version used).
 
     **Remark.** Two things have to be changed manually for reproducibility in both experiments. Firstly, when defining the data_file dictionary, the line with key 'valid' must be commented out for Experiment 1. Secondly,the argument `eval_dataset` in Trainer during the training step (not in hyperparameters fine-tuning). To do Experiment 1 `eval_dataset=tokenized_datasets['test']`, by default it is set to `eval_dataset=tokenized_datasets['valid']` for Experiment 2.
@@ -276,11 +294,11 @@ Python version: 3.10.13
 
     The script generates a .txt file where the p-values for all the entities, micro, macro and weighted F1-scores are computed and it is saved in the `directory` introduced as input. To compute the significance test for each of the F1-scores (default/strict/lenient) modes the `name` argument of `find_files_with_name` function should be changed to *f1_scores_default_token_level*, *f1_scores_strict_token_level* or *f1_scores_sk_token_level* respectively. By default it is set to strict mode since those values ​​are those reported in the paper.
 
-    Example (Hypothetical scenario): We have run the TrainingNER.py script with split 80-10-10 several times to obtain different hyperparameters and we want know if there is statistically significant difference. Each of the executions are saved under the name *{model_name}/{i}attempt* where $i=1,2,3$ and model_name is biobert-base-cased-v1.2 and longformer-base-4096. If we want to compare only BioBERT models the following command will work.
+    Example (Hypothetical scenario): We have run the TrainingNER.py script with split 80-10-10 several times to obtain different hyperparameters and we want know if there is statistically significant difference. Each of the executions are saved under the name *{model_name}/{i}attempt* where $i=1,2,3,...$ and model_name is biobert-base-cased-v1.2 and longformer-base-4096. If we want to compare only BioBERT models the following command will work.
     ```
-    python StatisticalAnalysis.py -d "../outputs/Experiment2" -m "biobert-base-cased-v1.2"
+    python StatisticalAnalysis.py -d "./outputs/Experiment2" -m "biobert-base-cased-v1.2"
     ```
 
 
-
+**REMARK.** LongFormer results are not exactly reproducible between runs and have been previously reported by other users; see [issue](https://github.com/huggingface/transformers/issues/12482).  On the other hand, the last two versions of TrainingNER.py ensure the reproducibility of values by fixing the seeds. However, while the reported results of Experiment 1 with BioBERT were executed with these versions, the reported results of Experiment 2 with BioBERT are not exactly reproducible. After the last checks, the outputs of the model trained in the first iteration of the loop is not reproducible due to the use of a previous version of TrainingNER.py where the first iteration was not reproducible. Nevertheless, the results of the other iterations are well reproduced between versions of TrainingNER.py, so the mean and standard deviation outputs will not have a statistically significant difference. Exact reproducibility of the setup, therefore, can be guaranteed by computing Experiment 1 with BioBERT or running by the user Experiment 2 with BioBERT several times under the same GPU and hyperparameters. When the values are not exactly the same (caused by the use of a different GPU or different hyperparameters, among other factors), we encourage the user to conduct a statistical analysis between attempts.
 
