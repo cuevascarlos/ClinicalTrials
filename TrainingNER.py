@@ -684,15 +684,15 @@ if __name__ == '__main__':
         torch.random.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         #############################
-        
+        pkl_file = glob.glob(os.path.join(save_path, "*.pkl"))
         if args['hyperparam'] != None:
             #Case when hyperparameters are provided
             with open(args['hyperparam'], 'rb') as file:
                 hyperparameters_loaded = pickle.load(file)
             #HYPERPARAMETERS_SEARCH = False
-        elif glob.glob(os.path.join(save_path, "*.pkl")):
+        elif pkl_file:
             #Case when hyperparameter optimization has already been done by the script
-            with open(glob.glob(os.path.join(save_path, "*.pkl")), 'rb') as file:
+            with open(pkl_file[0], 'rb') as file:
                 hyperparameters_loaded = pickle.load(file)
             #HYPERPARAMETERS_SEARCH = False
         elif HYPERPARAMETERS_SEARCH:
