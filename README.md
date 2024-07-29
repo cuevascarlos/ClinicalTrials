@@ -11,7 +11,7 @@ Under the supervision of the professors *Nona Naderi* and *Sarah Cohen-Boulakia*
 
 The main objective of this work is to reproduce the work done in the article ([PICO Corpus: A Publicly Available Corpus to Support Automatic Data Extraction from Biomedical Literature](https://aclanthology.org/2022.wiesp-1.4.pdf)).
 
-The pipeline of the project is tha following:
+The pipeline of the project is the following:
 
 1. Analysis of the dataset.
 2. Preprocessing and creation of datasets understandable by the models.
@@ -91,37 +91,6 @@ T7	control 747 796	FAC (5-fluorouracil/doxorubicin/cyclophosphamide)
 It can be seen that T2 and T26 are overlapped and after check which is the correct one we can conclude that T26 is the wrong one with the wrong beginning and ending values. To avoid not considering either of the two we have removed manually T26.
 
 This change is the consequence of the frequency of the total-participants entity being a unit smaller than that reported by the authors. Apparently, they consider it twice.
-
-Once the *.conll files* are read in order to reproduce the corpus statistics of Table 1 in the [paper](https://aclanthology.org/2022.wiesp-1.4.pdf) as the entities are divided into B-ner_tag and I-ner_tag the amount of times each entity appears can be reported considering only the times B-ner_tag appears for each ner_tag. The corpus statistics obtained in our work are the following:
-
-|Entity                     |Count|n_files|
-|---------------------------|-----|-------|
-|B-total-participants	    |1093 |847    |
-|B-intervention-participants|887  |674    |
-|B-control-participants     |784  |647    |
-|B-age	                    |231  |210    |
-|B-eligibility	            |925  |864    |
-|B-ethinicity               |101  |83     |
-|B-condition                |327  |321    |
-|B-location	                |186  |168    |
-|B-intervention	            |1067 |1011   |
-|B-control	                |979  |949    |
-|B-outcome	                |5038 |978    |
-|B-outcome-Measure	        |1077 |413    |
-|B-iv-bin-abs	            |556  |288    |
-|B-cv-bin-abs	            |465  |258    |
-|B-iv-bin-percent	        |1376 |561    |
-|B-cv-bin-percent	        |1148 |520    |
-|B-iv-cont-mean	            |1366 |154    |
-|B-cv-cont-mean	            |327  |154    |
-|B-iv-cont-median	        |270  |140    |
-|B-cv-cont-median           |247  |133    |
-|B-iv-cont-sd	            |129  |69     |
-|B-cv-cont-sd	            |124  |67     |
-|B-iv-cont-q1	            |4    |3      |
-|B-cv-cont-q1	            |4    |3      |
-|B-iv-cont-q3	            |4	  |3      |
-|B-cv-cont-q3	            |4	  |3      |
 
 Apart from the case of the total-participants entity that we have already commented there is a mismatch in the entities outcome and outcome-Measure which appears 15 and 4 times less than in the article. In the file `Preprocessing.ipynb` is the analysis of this mismatch and we can conclude that it is caused by using a different transformation from *.ann files* to *.conll files*. The chosen implementation merges two consecutive chunks tagged under the same entity so there is only one B-ner_tag instead of two different B-ner_tag. Here is an example:
 
