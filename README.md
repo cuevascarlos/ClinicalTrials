@@ -300,11 +300,11 @@ Here are the results of the experiments using the Longformer model in the case o
 | cv-cont-median               | 0.73                   | 0.6721 (+-0.0196)      | 0.7927 (+-0.0258)      |
 | iv-cont-sd                   | 0.89                   | 0.4644 (+-0.1047)      | 0.7117 (+-0.0737)      |
 | cv-cont-sd                   | 0.89                   | 0.5377 (+-0.1051)      | 0.7232 (+-0.1472)      |
-| iv-cont-q1                   | 0                      | 0.0000 (+-0.0000)      | ~                      |
-| cv-cont-q1                   | 0                      | 0.0000 (+-0.0000)      | ~                      |
-| iv-cont-q3                   | 0                      | 0.0000 (+-0.0000)      | ~                      |
-| cv-cont-q3                   | 0                      | 0.0000 (+-0.0000)      | ~                      |
-| micro avg                    | ~                      | 0.6964 (+-0.0064)      | 0.7325 (+-0.0051)      |
+| iv-cont-q1                   | 0                      | 0.0000 (+-0.0000)      | nan                    |
+| cv-cont-q1                   | 0                      | 0.0000 (+-0.0000)      | nan                    |
+| iv-cont-q3                   | 0                      | 0.0000 (+-0.0000)      | nan                    |
+| cv-cont-q3                   | 0                      | 0.0000 (+-0.0000)      | nan                    |
+| micro avg                    | nan                    | 0.6964 (+-0.0064)      | 0.7325 (+-0.0051)      |
 | macro avg                    | 0.7127                 | 0.5647 (+-0.0088)      | 0.7185 (+-0.0103)      |
 | weighted avg                 | 0.8530                 | 0.6979 (+-0.0061)      | 0.7343 (+-0.0053)      |
 
@@ -338,11 +338,11 @@ On the other hand, the results with the library scikit-learn are:
 | cv-cont-median               | 0.8171 (+-0.0108)      | 0.0871                        |
 | iv-cont-sd                   | 0.8787 (+-0.0431)      | -0.0113                       |
 | cv-cont-sd                   | 0.8625 (+-0.0313)      | -0.0275                       |
-| iv-cont-q1                   | ~                      | ~                             |
-| cv-cont-q1                   | ~                      | ~                             |
-| iv-cont-q3                   | ~                      | ~                             |
-| cv-cont-q3                   | ~                      | ~                             |
-| accuracy                     | 0.7993 (+-0.0076)      | ~                             |
+| iv-cont-q1                   | nan                    | nan                           |
+| cv-cont-q1                   | nan                    | nan                           |
+| iv-cont-q3                   | nan                    | nan                           |
+| cv-cont-q3                   | nan                    | nan                           |
+| accuracy                     | 0.7993 (+-0.0076)      | nan                           |
 | macro avg                    | 0.8080 (+-0.0040)      | 0.0953                        |
 | weighted avg                 | 0.8705 (+-0.0052)      | 0.0175                        |
 
