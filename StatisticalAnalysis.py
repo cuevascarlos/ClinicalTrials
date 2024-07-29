@@ -73,17 +73,19 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Statistical analysis of evaluation metrics between different runs of the same model')
     parser.add_argument('-d', '--directory', help='Directory to search for files', required=True)
     parser.add_argument('-m', '--model', help='Model to compare', required=True)
+    parser.add_argument('-mt','--metric', help='Metric to compare results', required=True)
 
     #Parse the arguments
     args = vars(parser.parse_args())
     directory = args['directory']
     model = args['model']
+    metric = args['metric']
 
     directories = find_directories_with_name(directory, model)
     print(directories)
     data = {}
     for direct in directories:
-        files = find_files_with_name(direct, 'f1_scores_strict_token_level')
+        files = find_files_with_name(direct, f'f1_scores_{metric}_token_level')
         for file in files:
             data[file] = read_csv_files(file)
 
