@@ -41,7 +41,7 @@ def eliminate_overlaps(textbounds):
             if t2.start >= t1.end or t2.end <= t1.start:
                 continue
             # eliminate shorter
-            if t1.end - t1.start > t2.end - t2.start:
+            if t1.end - t1.start >= t2.end - t2.start:
                 print("Eliminate %s due to overlap with %s" % (
                     t2, t1), file=sys.stderr)
                 eliminate[t2] = True
