@@ -23,7 +23,7 @@ The data has been downloaded from this [GitHub repository](https://github.com/so
 1. *.txt files:* Files with the abstract plain text.
 2. *.ann files:* Annotated files in BRAT format.
 
-The first step is to transform the *.ann files* into *.conll files* in order to have the tagged information in IOB format. There are a lot of tools on internet that make this transformation but finally we have chosen the implementation from [nlplab repository](https://github.com/nlplab/brat). In particular we have used the script `anntoconll.py` and we have modify the function `eliminate_overlaps` to optimize the computation. The used one is the following:
+The first step is to transform the *.ann files* into *.conll files* in order to have the tagged information in IOB format. There are a lot of tools on internet that make this transformation but finally we have chosen the implementation from [nlplab repository](https://github.com/nlplab/brat). In particular we have used the script `anntoconll.py` and we have modify the function `eliminate_overlaps` to optimize the computation in order to not compare two times each pair of entities. The used one is the following:
 
 ```
 def eliminate_overlaps(textbounds):
@@ -35,7 +35,7 @@ def eliminate_overlaps(textbounds):
     textbounds_aux = textbounds[:]
 
     for t1 in textbounds:
-        for t2 in textbounds:
+        for t2 in textbounds_aux:
             if t1 is t2: #This should not happen but just in case
                 continue
             if t2.start >= t1.end or t2.end <= t1.start:
@@ -45,7 +45,7 @@ def eliminate_overlaps(textbounds):
                 print("Eliminate %s due to overlap with %s" % (
                     t2, t1), file=sys.stderr)
                 eliminate[t2] = True
-            elif t1.end - t1.start < t2.end - t2.start:
+            else:
                 print("Eliminate %s due to overlap with %s" % (
                     t1, t2), file=sys.stderr)
                 eliminate[t1] = True
@@ -88,7 +88,7 @@ T3	outcome 1024 1050	median follow-up durations
 T7	control 747 796	FAC (5-fluorouracil/doxorubicin/cyclophosphamide)
 ```
 
-It can be seen that T2 and T26 are overlapped and after check which is the correct one we can conclude that T26 is the wrong one with the wrong beginning and ending values. To avoid not considering either of the two we have removed manually T26.
+It can be seen that T2 and T26 are overlapped and the previous function removes T26.
 
 This change is the consequence of the frequency of the total-participants entity being a unit smaller than that reported by the authors. Apparently, they consider it twice.
 
