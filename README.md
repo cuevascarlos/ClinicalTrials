@@ -1,6 +1,5 @@
 # ClinicalTrials
-TER (travail d’étude et de recherche) at LISN to extract information from publications of clinical trials.
-
+TER (travail d’étude et de recherche) at LISN to extract information from publications of clinical trials. 
 **Author:** Carlos Cuevas Villarmin
 
 Under the supervision of the professors *Nona Naderi* and *Sarah Cohen-Boulakia*.
@@ -347,3 +346,6 @@ On the other hand, the results with the library scikit-learn are:
 | weighted avg                 | 0.8705 (+-0.0052)      | 0.0175                        |
 
 
+## Citation
+
+Calos Cuevas Villarmin, Sarah Cohen-Boulakia, Nona Naderi "Reproducibility in Named Entity Recognition: A Case Study Analysis" to appear in 2024 IEEE 20th International Conference on e-Science (e-Science), Osaka, Japan.
