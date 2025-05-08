@@ -1,5 +1,6 @@
 # Named Entity Recognition in Clinical Trials 
 TER (travail d’étude et de recherche) at LISN to extract information from publications of clinical trials. 
+
 **Author:** Carlos Cuevas Villarmín
 
 Under the supervision of the professors *Nona Naderi* and *Sarah Cohen-Boulakia*.
