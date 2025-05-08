@@ -1,6 +1,6 @@
-# ClinicalTrials
+# Named Entity Recognition in Clinical Trials 
 TER (travail d’étude et de recherche) at LISN to extract information from publications of clinical trials. 
-**Author:** Carlos Cuevas Villarmin
+**Author:** Carlos Cuevas Villarmín
 
 Under the supervision of the professors *Nona Naderi* and *Sarah Cohen-Boulakia*.
 
@@ -346,6 +346,21 @@ On the other hand, the results with the library scikit-learn are:
 | weighted avg                 | 0.8705 (+-0.0052)      | 0.0175                        |
 
 
+## Acknowledgment
+
+This work was supported in part by the National Research Agency under the France 2030 program, with reference to ANR-22-PESN-0007. This work was also supported by the CHIST-ERA grant CHIST-ERA-22-ORD-02, by the Agence Nationale de la Recherche (ANR-23-CHRO-0008-01) and the ANR grant CHAIRE CPJ (23HR3101).
+
 ## Citation
 
-Calos Cuevas Villarmin, Sarah Cohen-Boulakia, Nona Naderi "Reproducibility in Named Entity Recognition: A Case Study Analysis" to appear in 2024 IEEE 20th International Conference on e-Science (e-Science), Osaka, Japan.
+```
+@INPROCEEDINGS{10678721,
+  author={Cuevas Villarmin, Carlos and Cohen-Boulakia, Sarah and Naderi, Nona},
+  booktitle={2024 IEEE 20th International Conference on e-Science (e-Science)}, 
+  title={Reproducibility in Named Entity Recognition: A Case Study Analysis}, 
+  year={2024},
+  volume={},
+  number={},
+  pages={1-10},
+  keywords={Training;Named entity recognition;Clinical trials;Transformers;Information retrieval;Hyperparameter optimization;Reproducibility of results;Robustness;Standards;Replicability},
+  doi={10.1109/e-Science62913.2024.10678721}}
+```
